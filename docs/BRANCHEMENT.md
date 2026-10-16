@@ -17,7 +17,7 @@ Chaque étape indique ce que **vous** faites (compte, identité, DNS) et ce qui 
 - une session Checkout créée par le vrai code de la boutique, dont le total doit être identique à celui de la commande.
 
 **Vérification de bout en bout (webhooks) :**
-1. Installez la CLI Stripe, puis lancez `stripe listen --forward-to localhost:8000/webhooks/stripe/<shop_id>`. La commande affiche un secret `whsec_…`.
+1. Installez la CLI Stripe, puis lancez `stripe listen --forward-to localhost:8000/webhooks/stripe/<shop_id> --events checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,checkout.session.expired,payment_intent.payment_failed,refund.created,refund.updated`. La commande affiche un secret `whsec_…`. Les versions récentes de la CLI exigent la liste `--events` ; sous Windows, utilisez `.\stripe.exe`.
 2. Dans la boutique, ouvrez *Paiements → Connecter Stripe (test)* et saisissez la clé et ce `whsec_…`.
 3. Passez une commande, puis payez avec `4242 4242 4242 4242` (accepté), avec `4000 0000 0000 0002` (refusé), puis avec Bancontact sur la page de test Stripe.
 4. Remboursez depuis la fiche commande et vérifiez que les statuts et le stock suivent.

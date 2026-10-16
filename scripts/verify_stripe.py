@@ -12,7 +12,7 @@ Vérifie, contre l'API Stripe réelle :
   5. Bancontact activé sur le compte (PaymentIntent EUR accepté) ;
   6. une session Checkout créée par le VRAI code de la boutique (lignes, réduction, livraison) — URL à ouvrir
      pour payer avec 4242 4242 4242 4242 ou 4000 0000 0000 0002 (refus), et Bancontact (page de test).
-Le webhook se teste ensuite avec : stripe listen --forward-to localhost:8000/webhooks/stripe/<shop_id>
+Le webhook se teste ensuite avec : stripe listen --forward-to localhost:8000/webhooks/stripe/<shop_id> --events checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,checkout.session.expired,payment_intent.payment_failed,refund.created,refund.updated
 """
 import os
 import sys
@@ -128,7 +128,7 @@ def main():
         print(f"{status} {label}\n       {detail}")
     print("\nÉtape manuelle : ouvrir l'URL Checkout, payer avec 4242 4242 4242 4242 (accepté) puis recommencer avec "
           "4000 0000 0000 0002 (refusé) ; tester Bancontact sur la page de test Stripe.\n"
-          "Webhook : stripe listen --forward-to localhost:8000/webhooks/stripe/<shop_id> puis vérifier le statut de la commande.")
+          "Webhook : stripe listen --forward-to localhost:8000/webhooks/stripe/<shop_id> --events checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,checkout.session.expired,payment_intent.payment_failed,refund.created,refund.updated puis vérifier le statut de la commande.")
     sys.exit(0 if all(s in (OK, WAIT) for s, _, _ in results) else 1)
 
 

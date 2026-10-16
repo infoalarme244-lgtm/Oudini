@@ -7,7 +7,7 @@
 <ol class="small"><li>Créez ou ouvrez votre compte Stripe. L'ouverture du compte, la vérification d'identité et l'IBAN se font chez Stripe : la plateforme ne peut pas les faire à votre place.</li>
 <li>Activez dans Stripe les moyens de paiement voulus (carte, Bancontact pour la Belgique, PayPal si disponible sur votre compte…).</li>
 <li>Créez une clé restreinte (rk_…) ou utilisez la clé secrète du mode voulu.</li>
-<li>Ajoutez un endpoint webhook vers <span class="mono">{{ webhook_url }}</span> avec les événements <span class="mono">checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, checkout.session.expired, payment_intent.payment_failed, refund.updated</span>, puis copiez le secret whsec_….</li></ol>
+<li>Ajoutez un endpoint webhook vers <span class="mono">{{ webhook_url }}</span> avec les événements <span class="mono">checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, checkout.session.expired, payment_intent.payment_failed, refund.created, refund.updated</span>, puis copiez le secret whsec_….</li></ol>
 <form method="post" action="/app/shops/{{ shop.id }}/payments/stripe"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="row">
 <div><label for="m">Mode</label><select id="m" name="mode"><option value="test">Test</option><option value="live">Production</option></select></div>
 <div><label for="sk">Clé secrète</label><input id="sk" name="secret_key" type="password" autocomplete="off" required></div>
