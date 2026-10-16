@@ -7,7 +7,7 @@
 - **Test manuel en local** (Windows, Stripe CLI avec `--events`) : commandes payées par carte, refus et Bancontact. Résultat rapporté « semble bien fonctionner » ; détail des statuts non transmis.
 
 ## À faire
-1. **Renouveler la clé Stripe de test**, qui a été affichée dans la conversation. Désactiver EPS, MB Way et Satispay dans le dashboard.
+1. ~~Renouveler la clé Stripe de test~~ : fait. Reste à désactiver EPS, MB Way et Satispay dans le dashboard.
 2. Hébergement : serveur Docker, domaine, `docker compose up -d` (voir `docs/BRANCHEMENT.md`), puis webhook Stripe déclaré sur le domaine.
 3. Emails : compte Postmark ou Brevo, DNS SPF/DKIM/DMARC, puis `scripts/verify_email.py`.
 4. Claude (facultatif) : `ANTHROPIC_API_KEY`, puis `scripts/verify_ai.py`.
