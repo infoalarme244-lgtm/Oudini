@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block bare %}<div style="padding:24px 16px;max-width:760px"><h1>Nouvelle boutique</h1>
+<p class="muted">Une seule des trois entrées suffit. Vous pourrez tout modifier ensuite ; rien n'est publié sans votre validation.</p>
+{% if error %}<div class="alert bad">{{ error }}</div>{% endif %}
+<form class="card" method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label for="prompt">1. Décrivez votre projet</label>
+<textarea id="prompt" name="prompt" placeholder="Ex. : Crée une boutique de baskets Nike pour la Belgique et la France, avec un positionnement premium accessible. Analyse 10 concurrents pertinents."></textarea>
+<label for="url">2. URL d'un site concurrent (facultatif) — analysée pour ses principes, jamais copiée</label>
+<input id="url" name="competitor_url" type="url" placeholder="https://…">
+<label for="file">3. Catalogue fournisseur CSV / XLSX (facultatif)</label><input id="file" name="catalog_file" type="file" accept=".csv,.xlsx">
+<label for="name">Nom de la boutique (facultatif — une proposition sera faite)</label><input id="name" name="name">
+<label><input type="checkbox" name="demo" value="1"> Ajouter des produits de démonstration (clairement marqués « DÉMO », à supprimer avant publication)</label>
+<p><button class="btn primary">Analyser ma demande</button></p></form></div>{% endblock %}

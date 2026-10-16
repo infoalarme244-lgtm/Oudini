@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block bare %}<div style="padding:24px 16px"><h1>Mes boutiques</h1>
+<p><a class="btn primary" href="/app/new">+ Nouvelle boutique</a>
+<form class="inline" method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn">Déconnexion</button></form></p>
+<div class="grid g3">{% for m in memberships %}<a class="card" style="text-decoration:none;color:inherit" href="/app/shops/{{ m.shop.id }}">
+<h3>{{ m.shop.name }}</h3><p class="small muted">{{ m.shop.countries|join(', ') }} · {{ m.role }}</p>
+<span class="badge {{ 'b-ok' if m.shop.status=='published' else 'b-mut' }}">{{ {'draft':'Brouillon privé','published':'En ligne','paused':'Hors ligne'}[m.shop.status] }}</span>
+<span class="badge {{ 'b-warn' if m.shop.payment_mode=='test' else 'b-ok' }}">Paiements {{ m.shop.payment_mode }}</span></a>
+{% else %}<p class="muted">Aucune boutique pour l'instant.</p>{% endfor %}</div></div>{% endblock %}

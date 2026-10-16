@@ -1,0 +1,28 @@
+<!doctype html><html lang="{{ st.lang }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{{ snap.brand.name }}{% endblock %}</title><meta name="description" content="{{ snap.home.hero_subtitle[:155] }}">
+{% if st.preview or shop.status!='published' %}<meta name="robots" content="noindex,nofollow">{% endif %}
+<style>:root{--bg:{{ theme.palette.bg }};--surface:{{ theme.palette.surface }};--text:{{ theme.palette.text }};--muted:{{ theme.palette.muted }};--accent:{{ theme.palette.accent }};--accent-text:{{ theme.palette.accent_text }};--line:{{ theme.palette.line }};--radius:{{ theme.radius }};--font-heading:"{{ theme.font_heading }}";--font-body:"{{ theme.font_body }}"}</style>
+<link rel="stylesheet" href="/static/store.css"></head><body>
+<a class="sr" href="#contenu">Aller au contenu</a>
+{% if st.preview %}<div class="banner">Prévisualisation privée — non visible du public{% if shop.status!='published' %} · boutique non publiée{% endif %}</div>{% endif %}
+{% if shop.payment_mode=='test' %}<div class="banner test">Mode test : aucun paiement réel n'est effectué</div>{% endif %}
+{% block demo %}{% endblock %}
+<header class="site"><div class="wrap"><div class="hbar"><a class="logo" href="{{ st.base }}/">{{ snap.brand.name }}</a><span class="grow"></span>
+<form action="{{ st.base }}/search" role="search"><label class="sr" for="q">{{ t('Rechercher') }}</label><input id="q" type="search" name="q" placeholder="{{ t('Rechercher') }}…" value="{{ request.query_params.get('q','') }}"></form>
+{% if shop.languages|length>1 %}{% for l in shop.languages %}<a class="icon-link" href="?lang={{ l }}" {{ 'aria-current=true' if l==st.lang }}>{{ l|upper }}</a>{% endfor %}{% endif %}
+<a class="icon-link" href="{{ st.base }}/account">{{ t('Mon compte') }}</a><a class="icon-link" href="{{ st.base }}/cart">{{ t('Panier') }} ({{ cart_count }})</a></div>
+<nav class="main" aria-label="Collections">{% for n in snap.nav %}<a href="{{ st.base }}{{ n.href }}">{{ t(n.label) }}</a>{% endfor %}</nav></div></header>
+<main id="contenu" class="wrap">{% if flash %}<div class="flash" role="status">{{ flash }}</div>{% endif %}{% block content %}{% endblock %}</main>
+<footer class="site"><div class="wrap"><div class="links">{% for k in snap.footer_links %}{% if snap.pages.get(k) %}<a href="{{ st.base }}/p/{{ k }}">{{ (st.page(k) or {}).get('title') }}</a>{% endif %}{% endfor %}<a href="{{ st.base }}/track">Suivi de commande</a></div>
+{% if snap.home.reseller_notice %}<p>{{ snap.home.reseller_notice }}</p>{% endif %}<p>© {{ snap.brand.name }}{% if shop.legal.get('company_name') %} — {{ shop.legal.company_name }}{% endif %}</p></div></footer>
+<details class="assistant"><summary class="btn primary">Une question ?</summary><div class="box" role="dialog" aria-label="Assistant d'achat">
+<div class="log" id="alog" aria-live="polite"><p class="small">Je réponds à partir du catalogue, des stocks et des conditions de la boutique. Si je ne sais pas, je transmets à l'équipe.</p></div>
+<form id="aform"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label class="sr" for="aq">Question</label><input class="f" id="aq" name="question" placeholder="Votre besoin, votre taille, votre budget…" required><button class="btn block" style="margin-top:6px">Envoyer</button></form></div></details>
+<script>
+document.getElementById('aform').addEventListener('submit',async e=>{e.preventDefault();const f=e.target,log=document.getElementById('alog'),q=f.question.value;
+const me=document.createElement('p');me.innerHTML='<strong>Vous :</strong> ';me.append(q);log.append(me);
+const r=await fetch('{{ st.base }}/api/assistant',{method:'POST',body:new FormData(f)});const d=await r.json();
+const p=document.createElement('p');p.style.whiteSpace='pre-line';p.textContent=d.answer;log.append(p);
+(d.products||[]).forEach(x=>{const a=document.createElement('a');a.href=d.base+'/product/'+x.handle;a.textContent='→ '+x.title+' — dès '+x.price.toFixed(2)+' € (tailles '+x.sizes.join(', ')+')'+(x.is_demo?' [DÉMO]':'');a.style.display='block';log.append(a)});
+f.question.value='';log.scrollTop=log.scrollHeight});
+</script></body></html>

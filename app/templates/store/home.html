@@ -1,0 +1,10 @@
+{% extends "store/base.html" %}
+{% block demo %}{% if products|selectattr('is_demo')|list %}<div class="banner demo">Contient des produits de DÉMONSTRATION fictifs</div>{% endif %}{% endblock %}
+{% block content %}
+<section class="hero"><h1>{{ home.hero_title }}</h1><p>{{ home.hero_subtitle }}</p>
+{% if featured %}<a class="btn primary" href="{{ st.base }}/c/{{ featured[0].handle }}">{{ featured[0].title }}</a>{% endif %} <a class="btn" href="{{ st.base }}/search">Tout le catalogue</a></section>
+<div class="props">{% for v in home.value_props %}<div class="prop">{{ v }}</div>{% endfor %}</div>
+{% if home.reseller_notice %}<p class="notice">{{ home.reseller_notice }}</p>{% endif %}
+<h2>Collections</h2><div class="cols">{% for c in collections %}<a class="col" href="{{ st.base }}/c/{{ c.handle }}"><strong>{{ t(c.title) }}</strong><div class="small" style="color:var(--muted)">{{ c.count }} produit(s)</div></a>{% endfor %}</div>
+{% if products %}<h2 style="margin-top:32px">Sélection</h2>{% include "store/_cards.html" %}{% else %}<p class="notice">Le catalogue est en cours de préparation.</p>{% endif %}
+{% endblock %}

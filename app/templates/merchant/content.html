@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block content %}
+<h1>Contenu & édition</h1>
+<div class="card"><h2>Édition par conversation</h2>
+<p class="small muted">Chaque demande crée une proposition que vous prévisualisez avant de l'appliquer. Rien n'est publié automatiquement.</p>
+<form class="chat" method="post" action="/app/shops/{{ shop.id }}/content/chat"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label class="sr" for="msg">Demande</label><input id="msg" name="message" required placeholder="Ex. : Change le style en sombre · Ajoute une collection Trail · Propose un pack rentable · Traduis la boutique en néerlandais">
+<button class="btn primary">Proposer</button></form></div>
+<div class="grid g2"><div class="card"><h2>Pages</h2><table><tr><th>Page</th><th>État</th><th></th></tr>
+{% for k,p in snap.get('pages',{}).items() %}<tr><td>{{ p.title }}</td><td>
+{% if '[À COMPLÉTER' in p.body %}<span class="badge b-warn">À compléter</span>{% endif %}
+{% if p.legal %}<span class="badge {{ 'b-ok' if p.validated else 'b-validation' }}">{{ 'Validée' if p.validated else 'Validation requise' }}</span>{% endif %}</td>
+<td><a class="btn sm" href="/app/shops/{{ shop.id }}/content/pages/{{ k }}">Modifier</a></td></tr>{% endfor %}</table>
+<form method="post" action="/app/shops/{{ shop.id }}/content/regenerate-legal"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<p><button class="btn sm">Regénérer les pages légales depuis mes informations</button></p></form></div>
+<div class="card"><h2>Versions</h2><div class="tablewrap"><table><tr><th>N°</th><th>Message</th><th>Statut</th><th></th></tr>
+{% for v in versions %}<tr><td>{{ v.number }}</td><td class="small">{{ v.message }}<br><span class="muted">{{ v.created_at.strftime('%d/%m %H:%M') }}</span></td>
+<td><span class="badge {{ 'b-ok' if v.id==shop.published_version_id else 'b-external' if v.id==shop.current_version_id else 'b-warn' if v.status=='proposed' else 'b-mut' }}">
+{{ 'publiée' if v.id==shop.published_version_id else 'brouillon actuel' if v.id==shop.current_version_id else v.status }}</span></td>
+<td>{% if v.status=='proposed' %}<a class="btn sm" href="/app/shops/{{ shop.id }}/content/versions/{{ v.id }}">Examiner</a>
+{% elif v.id!=shop.current_version_id and v.status!='discarded' %}<form class="inline" method="post" action="/app/shops/{{ shop.id }}/content/versions/{{ v.id }}/rollback"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm">Revenir</button></form>{% endif %}</td></tr>{% endfor %}</table></div></div></div>
+{% endblock %}

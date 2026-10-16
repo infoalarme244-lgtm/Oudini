@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block content %}<h1>Retours</h1><div class="card"><table><tr><th>Date</th><th>Commande</th><th>Motif</th><th>Statut</th><th>Commentaire</th></tr>
+{% for r in returns %}<tr><td>{{ r.created_at.strftime('%d/%m/%Y') }}</td><td><a href="/app/shops/{{ shop.id }}/orders/{{ r.order_id }}">#{{ r.order_id }}</a></td><td>{{ {'size':'Taille','defect':'Défaut','changed_mind':'Rétractation','other':'Autre'}[r.reason] }}</td><td>{{ r.status }}</td><td class="small">{{ r.comment }}</td></tr>
+{% else %}<tr><td colspan="5" class="muted">Aucun retour</td></tr>{% endfor %}</table></div>{% endblock %}

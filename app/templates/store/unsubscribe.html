@@ -1,0 +1,2 @@
+{% extends "store/base.html" %}{% block content %}<div style="max-width:480px;margin:32px auto" class="panel">{% if done %}<h1>C'est fait</h1><p>{{ c.email }} ne recevra plus d'emails marketing.</p>
+{% else %}<h1>Se désabonner</h1><p>Ne plus recevoir d'emails marketing à {{ c.email }} ?</p><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn primary">Confirmer</button></form>{% endif %}</div>{% endblock %}

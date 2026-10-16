@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% block content %}
+<h1>Paramètres</h1>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div class="card"><h2>Boutique</h2><label for="n">Nom</label><input id="n" name="name" value="{{ shop.name }}">
+<p class="small muted">Langues : {{ shop.languages|join(', ') }} · Pays : {{ shop.countries|join(', ') }} · Devise : {{ shop.currency }} (modifiables dans « Demande & hypothèses »)</p></div>
+<div class="card"><h2>Informations légales réelles <span class="badge b-validation">Validation</span></h2>
+<p class="small muted">Utilisées pour les mentions légales, CGV et confidentialité. Rien n'est inventé : un champ vide reste « À COMPLÉTER ».</p>
+<div class="grid g2">{% for k,l in legal_fields %}<div><label for="l_{{ k }}">{{ l }}</label><input id="l_{{ k }}" name="legal_{{ k }}" value="{{ shop.legal.get(k,'') }}"></div>{% endfor %}</div>
+{% if shop.legal.get('supply_mode') %}<p class="small">Mode d'approvisionnement déclaré : <strong>{{ shop.legal.supply_mode }}</strong></p>{% endif %}</div>
+<div class="card"><h2>Coûts (copilote de rentabilité)</h2><div class="grid g3">
+{% for k,l,kind in cost_fields %}{% set v = shop.cost_settings.get(k) %}<div><label for="c_{{ k }}">{{ l }}</label>
+<input id="c_{{ k }}" name="cost_{{ k }}" inputmode="decimal" value="{{ '' if v is none else (v/100 if kind in (true,'pct') else v) }}"></div>{% endfor %}</div>
+<p class="small muted">Laisser vide = inconnu (signalé comme donnée manquante, jamais supposé nul en silence).</p></div>
+<div class="card"><h2>IA</h2><label for="ai">Budget IA mensuel (USD)</label><input id="ai" name="ai_budget_usd" value="{{ shop.ai_budget_usd }}">
+<p class="small muted">Consommé : {{ '%.3f'|format(shop.ai_spent_usd) }} $. Au-delà du budget, la plateforme utilise ses moteurs déterministes.</p></div>
+<p><button class="btn primary">Enregistrer</button></p></form>
+<div class="grid g2"><form class="card" method="post" action="/app/shops/{{ shop.id }}/members"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<h2>Équipe</h2><ul class="small">{% for m in members %}<li>{{ m.user.email }} — {{ m.role }}</li>{% endfor %}</ul>
+<div class="row"><div><label for="me">Email</label><input id="me" name="email" type="email"></div><div><label for="mr">Rôle</label><select id="mr" name="role"><option>staff</option><option>admin</option><option>viewer</option></select></div><div><button class="btn">Ajouter</button></div></div></form>
+<form class="card" method="post" action="/app/shops/{{ shop.id }}/domain"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><h2>Domaine</h2>
+<label for="d">Domaine souhaité</label><input id="d" name="domain" placeholder="maboutique.be"><p class="small muted">L'achat est une action engageante : demande de validation, puis achat chez votre registrar.</p><button class="btn">Demander</button></form></div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block content %}
+<h1>{{ page.title }}</h1>
+{% if page.to_validate %}<div class="alert warn"><strong>Points à valider :</strong><ul>{% for x in page.to_validate %}<li>{{ x }}</li>{% endfor %}</ul></div>{% endif %}
+<form class="card" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label for="t">Titre</label><input id="t" name="title" value="{{ page.title }}">
+<label for="b">Contenu (## titre, - liste, **gras**)</label><textarea id="b" name="body" style="min-height:360px">{{ page.body }}</textarea>
+{% if page.legal %}<label><input type="checkbox" name="validated" value="1" {{ 'checked' if page.validated }}> J'ai relu cette page et je confirme qu'elle correspond à ma situation réelle</label>{% endif %}
+<p><button class="btn primary">Enregistrer (nouvelle version)</button></p></form>
+<div class="card"><h2>Aperçu</h2>{{ page.body|md }}</div>{% endblock %}

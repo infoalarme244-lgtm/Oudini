@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block content %}<h1>Clients & consentements</h1><div class="card"><div class="tablewrap"><table><tr><th>Email</th><th>Nom</th><th>Compte</th><th>Marketing</th><th>Preuve du consentement</th></tr>
+{% for c in customers %}<tr><td>{{ c.email }}</td><td>{{ c.name }}</td><td>{{ 'oui' if c.password_hash else 'invité' }}</td>
+<td>{% if c.unsubscribed_at %}<span class="badge b-bad">désabonné {{ c.unsubscribed_at.strftime('%d/%m/%Y') }}</span>{% elif c.marketing_consent %}<span class="badge b-ok">consenti</span>{% else %}<span class="badge b-mut">non</span>{% endif %}</td>
+<td class="small">{{ c.consent_source }} {{ c.consent_at.strftime('%d/%m/%Y %H:%M') if c.consent_at }}</td></tr>{% else %}<tr><td colspan="5" class="muted">Aucun client</td></tr>{% endfor %}</table></div></div>{% endblock %}

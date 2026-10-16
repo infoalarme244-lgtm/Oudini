@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% block content %}<h1>Tableau de bord</h1>
+<form method="get" class="row"><div><label for="md">Données</label><select id="md" name="mode"><option value="live" {{ 'selected' if d.mode=='live' }}>Réelles (paiements live)</option><option value="test" {{ 'selected' if d.mode=='test' }}>Test (commandes fictives)</option></select></div>
+<div><label for="dy">Période (jours)</label><input id="dy" name="days" type="number" value="{{ d.days }}"></div><div><button class="btn">Afficher</button></div></form>
+{% if d.mode=='test' %}<div class="alert warn">Mode test : ces chiffres proviennent de paiements simulés ou Stripe test. Ils ne représentent aucune vente réelle.</div>{% endif %}
+<div class="grid g4" style="margin-top:12px">
+<div class="card kpi"><div class="l">CA encaissé TTC</div><div class="v">{{ d.revenue_ttc|money }}</div><div class="small muted">{{ d.orders }} commande(s)</div></div>
+<div class="card kpi"><div class="l">Remboursements</div><div class="v">{{ d.refunds|money }}</div><div class="small muted">{{ d.returns }} retour(s){{ ', ' ~ d.return_rate ~ ' %' if d.return_rate is not none }}</div></div>
+<div class="card kpi"><div class="l">CA net HT</div><div class="v">{{ d.revenue_ht|money }}</div></div>
+<div class="card kpi"><div class="l">Panier moyen TTC</div><div class="v">{{ d.aov|money }}</div></div>
+<div class="card kpi"><div class="l">Marge brute (CA HT − coût d'achat)</div><div class="v">{{ d.gross_margin|money }}</div></div>
+<div class="card kpi"><div class="l">Marge contributive</div><div class="v">{{ d.contribution|money }}</div><div class="small muted">après livraison, emballage, frais de paiement, publicité, retours</div></div>
+<div class="card kpi"><div class="l">Résultat net</div><div class="v">{{ d.net_result|money if d.net_result is not none else 'non disponible' }}</div><div class="small muted">{{ d.net_result_reason }}</div></div>
+<div class="card kpi"><div class="l">Conversion</div><div class="v">{{ (d.conversion ~ ' %') if d.conversion is not none else 'non disponible' }}</div><div class="small muted">{{ d.sessions }} session(s) suivie(s)</div></div>
+<div class="card kpi"><div class="l">Coût d'acquisition (CAC)</div><div class="v">{{ d.cac|money if d.cac else 'non disponible' }}</div><div class="small muted">dépenses pub : {{ d.ad_spend|money }}</div></div></div>
+{% if d.missing %}<div class="alert warn"><strong>Fiabilité :</strong> certaines données manquent, les marges sont incomplètes.<ul>{% for m in d.missing %}<li>{{ m }}</li>{% endfor %}</ul><a href="/app/shops/{{ shop.id }}/settings">Compléter les coûts</a></div>{% endif %}
+<div class="grid g2"><div class="card"><h2>Canaux marketing</h2><table><tr><th>Canal</th><th class="n">Commandes</th><th class="n">CA</th><th class="n">Dépense</th><th class="n">ROAS</th><th class="n">CAC</th></tr>
+{% for ch,c in d.channels.items() %}<tr><td>{{ ch or 'direct' }}</td><td class="n">{{ c.orders }}</td><td class="n">{{ c.revenue|money }}</td><td class="n">{{ c.spend|money }}</td><td class="n">{{ c.roas or '—' }}</td><td class="n">{{ c.cac|money if c.cac else '—' }}</td></tr>{% endfor %}</table>
+<form method="post" action="/app/shops/{{ shop.id }}/spend"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="row"><div><label>Canal<input name="channel" required placeholder="google, meta, tiktok"></label></div>
+<div><label>Mois<input name="month" type="month" required></label></div><div><label>Dépense (€)<input name="amount" required></label></div><div><button class="btn sm">Ajouter</button></div></div></form>
+<p class="small muted">L'attribution utilise le paramètre utm_source de la première visite.</p></div>
+<div class="card"><h2>Effet de l'aide aux tailles sur les retours</h2>{% set s = d.size_advisor %}
+<table><tr><th></th><th class="n">Commandes</th><th class="n">Retours taille</th><th class="n">Taux</th></tr><tr><td>Avec l'outil</td><td class="n">{{ s.with.orders }}</td><td class="n">{{ s.with.size_returns }}</td><td class="n">{{ s.with.rate if s.with.rate is not none else '—' }} %</td></tr>
+<tr><td>Sans l'outil</td><td class="n">{{ s.without.orders }}</td><td class="n">{{ s.without.size_returns }}</td><td class="n">{{ s.without.rate if s.without.rate is not none else '—' }} %</td></tr></table><p class="small muted">{{ s.note or 'Comparaison observationnelle (non randomisée).' }}</p></div></div>
+<div class="card"><h2>Marge par commande</h2><div class="tablewrap"><table><tr><th>Commande</th><th class="n">CA HT</th><th class="n">Marge brute</th><th class="n">Contribution avant pub</th><th></th></tr>
+{% for r in d.per_order|reverse %}<tr><td><a href="/app/shops/{{ shop.id }}/orders/{{ r.order.id }}">{{ r.order.number }}</a></td><td class="n">{{ r.revenue_ht|money }}</td><td class="n">{{ r.gross|money }}</td><td class="n">{{ r.contribution_before_ads|money }}</td><td>{% if r.incomplete %}<span class="badge b-warn">incomplète</span>{% endif %}</td></tr>{% endfor %}</table></div></div>
+{% endblock %}

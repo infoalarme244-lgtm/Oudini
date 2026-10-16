@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block content %}
+<h1>Traçabilité</h1>
+<div class="card"><h2>Analyses et recommandations (IA et règles)</h2><div class="tablewrap"><table><tr><th>Date</th><th>Fonction</th><th>Moteur</th><th>Sources</th><th>Hypothèses / sortie</th><th class="n">Coût</th></tr>
+{% for t in traces %}<tr><td class="small">{{ t.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ t.feature }}</td><td><span class="badge b-mut">{{ t.engine }}</span></td>
+<td class="small">{% for s in t.sources[:5] %}<div><a href="{{ s }}" rel="noopener nofollow">{{ s[:60] }}</a></div>{% endfor %}</td>
+<td><details class="src"><summary>{{ t.input_summary[:80] }}</summary><pre class="mono" style="white-space:pre-wrap">{{ {'assumptions': t.assumptions, 'output': t.output}|tojson_pretty }}</pre></details></td>
+<td class="n small">{{ '%.4f $'|format(t.cost_usd) }}</td></tr>{% endfor %}</table></div></div>
+<div class="card"><h2>Journal des modifications</h2><div class="tablewrap"><table><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Objet</th><th>Détail</th></tr>
+{% for l in logs %}<tr><td class="small">{{ l.created_at.strftime('%d/%m %H:%M:%S') }}</td><td>{{ l.user_id or 'système' }}</td><td>{{ l.action }}</td><td>{{ l.entity }} {{ l.entity_id }}</td>
+<td><details class="src"><summary>voir</summary><pre class="mono" style="white-space:pre-wrap">{{ {'avant': l.before, 'après': l.after}|tojson_pretty }}</pre></details></td></tr>{% endfor %}</table></div></div>
+<div class="card"><h2>Tâches de fond</h2><table><tr><th>#</th><th>Type</th><th>Statut</th><th>Essais</th><th>Erreur</th></tr>{% for j in jobs %}<tr><td>{{ j.id }}</td><td>{{ j.kind }}</td><td>{{ j.status }}</td><td>{{ j.attempts }}</td><td class="small">{{ j.error[:200] }}</td></tr>{% endfor %}</table></div>
+{% endblock %}

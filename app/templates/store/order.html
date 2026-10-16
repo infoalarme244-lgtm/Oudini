@@ -1,0 +1,12 @@
+{% extends "store/base.html" %}{% block content %}<div style="max-width:720px;margin:24px auto"><h1>Commande {{ o.number }}</h1>
+{% if o.status=='pending_payment' %}<p class="notice">Paiement en attente de confirmation par le prestataire. Cette page se met à jour dès réception.</p><script>setTimeout(()=>location.reload(),4000)</script>
+{% elif o.status=='paid' %}<p class="notice">Paiement confirmé. Merci ! Un email de confirmation vous a été envoyé.</p>
+{% elif o.status=='payment_failed' %}<p class="notice">Le paiement a été refusé. Votre panier est conservé dans cette commande.</p>
+<form method="post" action="{{ st.base }}/order/{{ o.public_token }}/retry"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn primary">Réessayer le paiement</button></form>
+{% elif o.status=='cancelled' %}<p class="notice">Commande annulée : aucun montant n'a été débité.</p>{% endif %}
+<p>Statut : <strong>{{ STATUS_FR[o.status] }}</strong>{% if o.tracking_number %} · suivi : {{ o.tracking_number }}{% endif %}</p>
+{% if o.shipping_method.get('min_days') is not none %}<p class="small">Délai annoncé : {{ o.shipping_method.min_days }}–{{ o.shipping_method.max_days }} jours ouvrés après expédition.</p>{% endif %}
+<table class="cart">{% for it in o.items %}<tr><td>{{ it.qty }} × {{ it.title }} <span class="small">{{ it.variant_label }}</span></td><td class="n">{{ (it.unit_price_cents*it.qty)|money }}</td></tr>{% endfor %}
+<tr><td>Livraison</td><td class="n">{{ o.shipping_cents|money }}</td></tr>{% if o.discount_cents %}<tr><td>Réduction</td><td class="n">−{{ o.discount_cents|money }}</td></tr>{% endif %}<tr><td><strong>Total</strong></td><td class="n"><strong>{{ o.total_cents|money }}</strong></td></tr>
+{% if o.refunded_cents %}<tr><td>Remboursé</td><td class="n">−{{ o.refunded_cents|money }}</td></tr>{% endif %}</table>
+<p class="small">Conservez ce lien pour suivre votre commande, ou utilisez <a href="{{ st.base }}/track">le suivi</a> avec votre numéro et votre email.</p></div>{% endblock %}

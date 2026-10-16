@@ -1,0 +1,7 @@
+{% extends "store/base.html" %}{% block title %}{{ p.title }} — {{ snap.brand.name }}{% endblock %}
+{% block content %}<article class="prose" style="margin:24px 0"><h1>{{ p.title }}</h1>{{ p.body|md }}
+{% if p.get('dynamic')=='shipping' %}{% for z in zones %}<h2>{{ z.name }}</h2>{% for r in z.rates %}<p>{{ r.name }}{{ ' (' ~ r.carrier ~ ')' if r.carrier }} : {{ r.price_cents|money }}{{ ', offerte dès ' ~ (r.free_over_cents|money) if r.free_over_cents }} — {{ r.min_days }}–{{ r.max_days }} jours ouvrés</p>{% else %}<p>Livraison non encore configurée.</p>{% endfor %}{% endfor %}{% endif %}
+{% if p.get('dynamic')=='contact' %}{% if shop.legal.get('email') %}<p>Email : {{ shop.legal.email }}{{ ' · Tél. : ' ~ shop.legal.phone if shop.legal.get('phone') }}</p>{% endif %}
+<form method="post" action="{{ st.base }}/contact" class="form panel"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="ce">Votre email</label><input class="f" id="ce" name="email" type="email" required>
+<label for="cm">Message</label><textarea class="f" id="cm" name="message" required rows="5"></textarea><p><button class="btn primary">Envoyer</button></p></form>{% endif %}
+{% if p.get('legal') and not p.get('validated') and st.preview %}<p class="notice">Page légale non encore validée par le commerçant.</p>{% endif %}</article>{% endblock %}

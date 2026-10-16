@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block content %}
+<h1>Lancement</h1><div class="card"><div class="score">{{ readiness.score }} %</div><div class="bar"><i style="width:{{ readiness.score }}%"></i></div>
+<p>{{ 'Aucun blocage : vous pouvez demander la publication.' if readiness.can_publish else readiness.blocking|length ~ ' blocage(s) à lever.' }}</p></div>
+<div class="card"><ul class="check">{% for i in readiness['items'] %}<li><span class="dot {{ 'ok' if i.ok else 'bad' if i.blocking else 'warn' }}"></span>
+<div style="flex:1"><strong>{{ i.label }}</strong> {% if not i.ok %}<span class="badge {{ 'b-bad' if i.blocking else 'b-warn' }}">{{ 'bloquant' if i.blocking else 'recommandé' }}</span>{% endif %}
+{% if i.detail %}<div class="small muted">{{ i.detail }}</div>{% endif %}</div>
+{% if not i.ok and i.fix %}<a class="btn sm" href="/app/shops/{{ shop.id }}{{ i.fix }}">Corriger</a>{% endif %}</li>{% endfor %}</ul></div>
+<form class="inline" method="post" action="/app/shops/{{ shop.id }}/launch/request"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button class="btn primary" {{ '' if readiness.can_publish else 'disabled' }}>Demander la publication</button></form>
+{% if shop.status=='published' %}<form class="inline" method="post" action="/app/shops/{{ shop.id }}/unpublish"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger">Mettre hors ligne</button></form>{% endif %}
+{% endblock %}

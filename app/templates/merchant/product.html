@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/app/shops/{{ shop.id }}/products">← Produits</a></p>
+<h1>{{ p.title }} {% if p.is_demo %}<span class="badge b-warn">DÉMO</span>{% endif %}</h1>
+<form class="card" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="grid g2">
+<div><label for="t">Titre</label><input id="t" name="title" value="{{ p.title }}"></div>
+<div><label for="s">Statut</label><select id="s" name="status">{% for s in ['active','draft','archived'] %}<option {{ 'selected' if p.status==s }}>{{ s }}</option>{% endfor %}</select></div>
+<div><label for="b">Marque</label><input id="b" name="brand" value="{{ p.brand }}"></div><div><label for="m">Modèle</label><input id="m" name="model" value="{{ p.model }}"></div>
+<div><label for="u">{{ vp.usage_label }}{{ ' (' ~ vp.usages|join(', ') ~ '…)' if vp.usages }}</label><input id="u" name="usage" value="{{ p.usage }}"></div>
+<div><label for="g">Genre (homme, femme, enfant, mixte)</label><input id="g" name="gender" value="{{ p.gender }}"></div>
+<div><label for="c">Type de produit</label><select id="c" name="category"><option value="">Autre / générique</option>{% for k,v in verticals.items() %}<option value="{{ k }}" {{ 'selected' if p.category==k }}>{{ v.label }}</option>{% endfor %}</select></div><div><label for="tg">Étiquettes (virgules)</label><input id="tg" name="tags" value="{{ p.tags|join(', ') }}"></div>
+<div><label for="sp">Fournisseur</label><select id="sp" name="supplier_id"><option value="">—</option>{% for s in suppliers %}<option value="{{ s.id }}" {{ 'selected' if p.supplier_id==s.id }}>{{ s.name }}</option>{% endfor %}</select></div></div>
+{% if vp.attributes %}<h3 style="margin-top:16px">Caractéristiques — {{ vp.label }}</h3><div class="grid g3">{% for k,l,choices in vp.attributes %}<div>
+<label for="at_{{ k }}">{{ l }}{% if k in vp.required_attributes %} <span class="badge b-bad">obligatoire</span>{% elif k in vp.get('recommended_attributes',[]) %} <span class="badge b-warn">recommandé</span>{% endif %}</label>
+{% if choices %}<select id="at_{{ k }}" name="attr_{{ k }}"><option value="">—</option>{% for c in choices %}<option {{ 'selected' if p.attributes.get(k)==c }}>{{ c }}</option>{% endfor %}</select>
+{% else %}<input id="at_{{ k }}" name="attr_{{ k }}" value="{{ p.attributes.get(k,'') }}">{% endif %}</div>{% endfor %}</div>
+{% if vp.compliance %}<div class="alert warn small" style="margin-top:12px"><strong>Points de conformité ({{ vp.label }}) :</strong><ul>{% for c in vp.compliance %}<li>{{ c }}</li>{% endfor %}</ul></div>{% endif %}{% endif %}
+<label for="d">Description (rédigée par vous ; ne copiez pas de textes tiers)</label><textarea id="d" name="description">{{ p.description }}</textarea>
+<div class="grid g2"><div><label for="o">Provenance déclarée</label><textarea id="o" name="origin" placeholder="Ex. : acheté auprès de [fournisseur], distributeur européen, facture n°…">{{ p.origin }}</textarea></div>
+<div><label for="a">Authenticité (justificatif)</label><textarea id="a" name="authenticity" placeholder="Ce que vous pouvez prouver, rien de plus">{{ p.authenticity }}</textarea>
+<label for="ae">Lien vers le justificatif (privé)</label><input id="ae" name="authenticity_evidence" value="{{ p.authenticity_evidence }}"></div></div>
+<h3 style="margin-top:16px">Images</h3>{% for i in p.images %}<div class="small">{{ i.url }} — droits : {{ i.license or 'NON DÉCLARÉS (masquée en vitrine)' }}</div>{% endfor %}
+<div class="row"><div><label for="iu">Ajouter une image (URL https)</label><input id="iu" name="image_url"></div><div><label for="il">Droits d'utilisation</label><input id="il" name="image_license" placeholder="Photo personnelle / fournie par le fournisseur avec autorisation…"></div></div>
+<p><button class="btn primary">Enregistrer</button></p></form>
+<div class="card"><h2>Variantes, stock et marge</h2><div class="tablewrap"><table><tr><th>SKU</th><th>Variante</th><th>Prix TTC (€)</th><th>Coût (€)</th><th>Stock</th><th>Seuil</th><th class="n">Réservé</th><th class="n">Marge contrib.</th><th></th></tr>
+{% for v in p.variants %}{% set ue = ues[v.id] %}{% set fid = 'vf' ~ v.id %}<tr>
+<td class="mono">{{ v.sku }}</td><td class="small">{{ v.label }}</td>
+<td><input form="{{ fid }}" aria-label="Prix {{ v.sku }}" name="price" value="{{ '%.2f'|format(v.price_cents/100) if v.price_cents is not none }}" style="width:90px"></td>
+<td><input form="{{ fid }}" aria-label="Coût {{ v.sku }}" name="cost" value="{{ '%.2f'|format(v.cost_cents/100) if v.cost_cents is not none }}" style="width:90px"></td>
+<td><input form="{{ fid }}" aria-label="Stock {{ v.sku }}" name="stock" type="number" min="0" value="{{ v.stock }}" style="width:80px"></td>
+<td><input form="{{ fid }}" aria-label="Seuil {{ v.sku }}" name="reorder_point" type="number" min="0" value="{{ v.reorder_point }}" style="width:64px"></td>
+<td class="n">{{ v.reserved }}</td><td class="n">{% if ue.ok %}<span class="{{ 'badge b-bad' if ue.deficit }}">{{ ue.contribution|money }}</span>{% if not ue.reliable %}<div class="small muted">incomplète</div>{% endif %}{% else %}—{% endif %}</td>
+<td><form id="{{ fid }}" method="post" action="/app/shops/{{ shop.id }}/variants/{{ v.id }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm">OK</button></form></td></tr>{% endfor %}</table></div>
+<form method="post" action="/app/shops/{{ shop.id }}/products/{{ p.id }}/variants"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="row">
+<div><label for="vs">SKU</label><input id="vs" name="sku" required></div><div><label for="vz">{{ vp.axes.size }}</label><input id="vz" name="size"></div><div><label for="vc">{{ vp.axes.color }}</label><input id="vc" name="color"></div>
+<div><label for="vp">Prix TTC</label><input id="vp" name="price"></div><div><label for="vk">Coût</label><input id="vk" name="cost"></div><div><label for="vq">Stock</label><input id="vq" name="stock" type="number" value="0" min="0"></div>
+<div><button class="btn">Ajouter</button></div></div></form></div>
+<div class="grid g2"><div class="card"><h2>{{ vp.fit.label if vp.fit else 'Guide des tailles' }}</h2>{% if not vp.fit %}<p class="muted">Non applicable à ce type de produit.</p>
+{% elif guide %}<p>{{ 'Guide du modèle' if guide_level=='model' else 'Guide générique de la marque' }} {{ guide.brand }} {{ guide.model }} — {{ guide.rows|length }} tailles. Source : {{ guide.source_url or 'non renseignée' }}</p>
+{% else %}<p class="muted">Aucun guide pour la marque « {{ p.brand or '—' }} ». L'aide au choix sera désactivée sur cette fiche.</p>{% endif %}<a class="btn sm" href="/app/shops/{{ shop.id }}/suppliers">Gérer les guides</a></div>
+<div class="card"><h2>Alertes retour en stock</h2><p>{{ alerts|selectattr('notified_at','none')|list|length }} en attente, {{ alerts|rejectattr('notified_at','none')|list|length }} notifiée(s).</p></div></div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block content %}
+<h1>Import / export du catalogue</h1>
+<form class="card" method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label for="f">Fichier CSV (séparateur , ou ;) ou XLSX — 5 Mo max</label><input id="f" type="file" name="file" accept=".csv,.xlsx" required>
+<label><input type="checkbox" name="dry_run" value="1" checked> Vérifier sans importer (rapport d'erreurs ligne par ligne)</label>
+<p><button class="btn primary">Envoyer</button> <a class="btn" href="/app/shops/{{ shop.id }}/export.csv">Exporter le catalogue (CSV)</a></p>
+<p class="small muted">Colonnes reconnues (FR ou EN) : {{ columns|join(', ') }}. Caractéristiques : une colonne <span class="mono">attr_&lt;clé&gt;</span> par attribut (ex. attr_movement, attr_water_resistance_m, attr_metal, attr_ingredients). Colonne <span class="mono">category</span> : chaussures, montres, bijoux, accessoires, vêtements, beauté, électronique, maison. Une ligne = une variante (SKU unique). Les images exigent une déclaration de droits.</p></form>
+{% if preview %}<div class="card"><h2>Vérification</h2><p>{{ preview.rows }} ligne(s) · {{ preview.products_created }} produit(s) à créer · {{ preview.variants_created }} variante(s) à créer · {{ preview.variants_updated }} à mettre à jour</p>
+{% if preview.errors %}<div class="alert bad">{{ preview.errors|length }} erreur(s) bloquante(s)</div>{% endif %}
+<table><tr><th>Ligne</th><th>Champ</th><th>Message</th><th>Type</th></tr>{% for e in preview.errors %}<tr><td>{{ e.row }}</td><td>{{ e.field }}</td><td>{{ e.message }}</td><td><span class="badge b-bad">erreur</span></td></tr>{% endfor %}
+{% for e in preview.warnings[:100] %}<tr><td>{{ e.row }}</td><td>{{ e.field }}</td><td>{{ e.message }}</td><td><span class="badge b-warn">alerte</span></td></tr>{% endfor %}</table>
+<p class="small muted">Décochez « Vérifier sans importer » pour lancer l'import en tâche de fond.</p></div>{% endif %}
+<div class="card"><h2>Imports récents</h2><table><tr><th>#</th><th>Statut</th><th>Résultat</th></tr>{% for j in jobs %}<tr><td>{{ j.id }}</td><td>{{ j.status }}</td>
+<td class="small">{% if j.result %}{{ j.result.variants_created }} créée(s), {{ j.result.variants_updated }} mise(s) à jour, {{ j.result.errors|length }} erreur(s){% for e in j.result.errors[:5] %}<div>ligne {{ e.row }} : {{ e.message }}</div>{% endfor %}{% else %}{{ j.error[:200] }}{% endif %}</td></tr>{% endfor %}</table></div>
+{% endblock %}

@@ -1,0 +1,4 @@
+{% extends "store/base.html" %}{% block content %}<div class="panel" style="max-width:520px;margin:32px auto"><h1>Simulateur de paiement</h1>
+<p>Commande {{ o.number }} — <strong>{{ o.total_cents|money }}</strong></p><p class="small" style="color:var(--muted)">Environnement de test : aucun argent réel, aucune carte demandée. Choisissez l'issue à simuler ; la confirmation passe par un événement signé, comme un vrai prestataire.</p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><p><button class="btn primary block" name="outcome" value="success">Simuler un paiement accepté</button></p>
+<p><button class="btn block" name="outcome" value="fail">Simuler un paiement refusé</button></p><p><button class="btn block" name="outcome" value="cancel">Simuler un abandon</button></p></form></div>{% endblock %}

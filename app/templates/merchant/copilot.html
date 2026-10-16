@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block content %}<h1>Copilote de rentabilité</h1>
+<p class="muted">Marge contributive prévisionnelle par vente unitaire (une paire par commande) avec les coûts que vous avez renseignés.</p>
+<form method="get" class="row"><div><label for="ds">Simuler une remise (%)</label><input id="ds" name="discount" value="{{ discount }}"></div><div><button class="btn">Calculer</button></div></form>
+{% if missing %}<div class="alert warn"><strong>Données manquantes</strong> (le calcul les compte à 0 et le signale) : {{ missing|join(' · ') }}. <a href="/app/shops/{{ shop.id }}/settings">Compléter</a></div>{% endif %}
+<div class="card"><div class="tablewrap"><table><tr><th>Produit</th><th>SKU</th><th class="n">Prix TTC</th><th class="n">Prix HT</th><th class="n">Marge brute</th><th class="n">Marge contributive</th><th>Détail</th></tr>
+{% for v,ue in rows %}<tr><td>{{ v.product.title }} {% if v.product.is_demo %}<span class="badge b-warn">DÉMO</span>{% endif %}</td><td class="mono">{{ v.sku }}</td>
+{% if ue.ok %}<td class="n">{{ ue.price_ttc|money }}</td><td class="n">{{ ue.price_ht|money }}</td><td class="n">{{ ue.gross_margin|money }} <span class="small muted">{{ ue.gross_margin_pct }} %</span></td>
+<td class="n">{% if ue.deficit %}<span class="badge b-bad">{{ ue.contribution|money }} déficitaire</span>{% else %}{{ ue.contribution|money }} <span class="small muted">{{ ue.contribution_pct }} %</span>{% endif %}{% if not ue.reliable %}<div class="small muted">incomplète</div>{% endif %}</td>
+<td><details class="src"><summary>calcul</summary><table>{% for l,vv in ue.lines %}<tr><td class="small">{{ l }}</td><td class="n small">{{ vv|money }}</td></tr>{% endfor %}</table></details></td>
+{% else %}<td colspan="5" class="muted">{{ ue.missing|join(', ') }}</td>{% endif %}</tr>{% endfor %}</table></div></div>{% endblock %}

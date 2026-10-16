@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% block content %}
+<h1>Validations</h1><p class="muted">Actions engageantes : publication, paiements réels, domaine, campagnes payantes, emails marketing, prix en masse.</p>
+<div class="card"><div class="tablewrap"><table><tr><th>#</th><th>Action</th><th>Résumé</th><th>Statut</th><th>Résultat</th><th></th></tr>
+{% for r in reqs %}<tr><td>{{ r.id }}</td><td>{{ actions[r.action] }}</td><td class="small">{{ r.summary }}</td>
+<td><span class="badge {{ 'b-warn' if r.status=='pending' else 'b-ok' if r.status in ('executed','approved') else 'b-bad' }}">{{ r.status }}</span>{% if r.auto_permission_id %} <span class="badge b-mut">auto #{{ r.auto_permission_id }}</span>{% endif %}</td>
+<td class="small">{{ r.result }}</td><td>{% if r.status=='pending' %}<form class="inline" method="post" action="/app/shops/{{ shop.id }}/approvals/{{ r.id }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button class="btn sm primary" name="decision" value="approve">Valider</button> <button class="btn sm" name="decision" value="reject">Refuser</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="6" class="muted">Aucune demande</td></tr>{% endfor %}</table></div></div>
+<div class="card"><h2>Autorisations automatiques limitées</h2><p class="small muted">Jamais pour la publication, les paiements réels ou l'achat de domaine. Révocables à tout moment.</p>
+<table><tr><th>Action</th><th>Limites</th><th>Expire</th><th>État</th><th></th></tr>{% for p in perms %}<tr><td>{{ actions[p.action] }}</td><td class="mono">{{ p.limits|tojson }}</td>
+<td>{{ p.expires_at or '—' }}</td><td>{{ 'révoquée' if p.revoked_at else 'active' }}</td><td>{% if not p.revoked_at %}<form method="post" action="/app/shops/{{ shop.id }}/permissions/{{ p.id }}/revoke"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm danger">Révoquer</button></form>{% endif %}</td></tr>{% endfor %}</table>
+<form method="post" action="/app/shops/{{ shop.id }}/permissions"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="row">
+<div><label for="pa">Action</label><select id="pa" name="action"><option value="bulk_price_change">Modification massive des prix</option><option value="send_marketing">Envoi marketing</option><option value="launch_paid_campaign">Campagne payante</option></select></div>
+<div><label for="p1">Variation max (%)</label><input id="p1" name="max_change_pct"></div><div><label for="p2">Produits max</label><input id="p2" name="max_products"></div>
+<div><label for="p3">Destinataires max</label><input id="p3" name="max_recipients"></div><div><label for="p4">Budget max (€)</label><input id="p4" name="max_budget_cents"></div>
+<div><label for="p5">Expiration</label><input id="p5" type="datetime-local" name="expires_at"></div><div><button class="btn">Créer</button></div></div></form></div>
+{% endblock %}

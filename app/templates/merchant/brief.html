@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% block content %}
+<h1>Demande & hypothèses</h1>
+{% if brief.prompt %}<div class="card"><div class="small muted">Votre demande</div><p>« {{ brief.prompt }} »</p>
+{% if brief.competitor_url %}<p class="small">URL concurrente : <a href="{{ brief.competitor_url }}" rel="noopener nofollow">{{ brief.competitor_url }}</a> (principes analysés, contenus jamais copiés)</p>{% endif %}</div>{% endif %}
+<div class="card"><h2>Légende</h2><span class="badge b-auto">Automatique</span> fait par la plateforme ·
+<span class="badge b-external">Connexion externe</span> nécessite un service tiers (Stripe, transporteur…) ·
+<span class="badge b-validation">Validation du commerçant</span> nécessite votre décision</div>
+{% set open_q = brief.questions|selectattr('answer','none')|list %}
+{% if brief.questions %}<form class="card" method="post" action="/app/shops/{{ shop.id }}/brief/questions"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<h2>Questions indispensables <span class="badge b-validation">Validation</span></h2>
+{% for q in brief.questions %}<label for="q_{{ q.key }}"><strong>{{ q.question }}</strong> — <span class="small">{{ q.why }}</span></label>
+{% if q.options %}<select id="q_{{ q.key }}" name="q_{{ q.key }}"><option value="">— choisir —</option>{% for o in q.options %}<option {{ 'selected' if q.answer==o }}>{{ o }}</option>{% endfor %}</select>
+{% else %}<input id="q_{{ q.key }}" name="q_{{ q.key }}" value="{{ q.answer or '' }}">{% endif %}{% endfor %}
+<p><button class="btn">Enregistrer les réponses</button> <span class="small muted">{{ open_q|length }} question(s) en attente — elles ne bloquent pas la prévisualisation.</span></p></form>{% endif %}
+<form class="card" method="post" action="/app/shops/{{ shop.id }}/brief/assumptions"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<h2>Hypothèses retenues <span class="badge b-auto">Automatique</span> modifiables</h2>
+<div class="tablewrap"><table><tr><th>Hypothèse</th><th>Valeur</th><th>Origine</th></tr>
+{% for a in brief.assumptions %}<tr><td>{{ a.label }}</td><td><input aria-label="{{ a.label }}" name="a_{{ a.key }}" value="{{ a.value|join(', ') if a.value is iterable and a.value is not string else a.value }}"></td>
+<td><span class="badge {{ 'b-ok' if a.origin=='demande' else 'b-warn' if 'défaut' in a.origin or 'hypothèse' in a.origin else 'b-mut' }}">{{ a.origin }}</span></td></tr>{% endfor %}</table></div>
+<p><button class="btn">Mettre à jour</button></p></form>
+<form method="post" action="/app/shops/{{ shop.id }}/generate"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div class="card"><h2>Positionnement proposé</h2><p class="small muted">Hypothèses de départ, à confronter à l'analyse concurrentielle. Choisissez-en une.</p>
+<div class="grid g3">{% for o in brief.positioning_options %}<label class="card" style="margin:0;cursor:pointer;color:var(--text)">
+<input type="radio" name="positioning" value="{{ loop.index0 }}" {{ 'checked' if (brief.chosen_positioning or 0)==loop.index0 }}> <strong>{{ o.name }}</strong>
+<p class="small">{{ o.promise }}</p><p class="small muted">Cible : {{ o.target }}</p><ul class="small">{% for p in o.proofs %}<li>{{ p }}</li>{% endfor %}</ul>
+<p class="small muted">Risque : {{ o.risk }}</p>{% if o.reseller_note %}<p class="small"><strong>{{ o.reseller_note }}</strong></p>{% endif %}</label>{% endfor %}</div></div>
+<div class="grid g2"><div class="card"><h2>Identité visuelle (originale)</h2>
+<p>Style : <strong>{{ identity.style_name }}</strong> · Titres : {{ identity.font_heading }} · Texte : {{ identity.font_body }}</p>
+<div style="display:flex;gap:6px;flex-wrap:wrap">{% for k,v in identity.palette.items() %}<span title="{{ k }}" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:{{ v }}"></span>{% endfor %}</div>
+<p class="small muted">Nom proposé : <strong>{{ identity.suggested_name }}</strong> (autres : {{ identity.name_suggestions|join(', ') }}). Évitez toute marque déposée dans le nom ou le domaine.</p></div>
+<div class="card"><h2>Structure du catalogue</h2>{% if profiles %}<p class="small">Types de produits : {% for vp in profiles %}<span class="badge">{{ vp.label }}</span> {% endfor %}</p>{% endif %}<ul class="small">{% for c in collections %}<li>{{ c.title }} — {{ c.description }}</li>{% endfor %}</ul>
+<p class="small muted">Filtres : {{ filters|join(', ') }}</p>
+{% for vp in profiles if vp.compliance %}<details class="src"><summary>Points de conformité — {{ vp.label }} <span class="badge b-validation">Validation</span></summary><ul class="small">{% for c in vp.compliance %}<li>{{ c }}</li>{% endfor %}</ul></details>{% endfor %}</div></div>
+<div class="card"><h2>Analyse concurrentielle</h2>
+<label><input type="checkbox" name="analyse" value="1" checked> Lancer l'analyse de {{ brief.assumptions|selectattr('key','equalto','competitor_count')|map(attribute='value')|first or 10 }} concurrents en tâche de fond <span class="badge b-auto">Automatique</span></label>
+<p class="small muted">Sélection : {% if brief.competitor_url %}l'URL fournie + {% endif %}une liste indicative de boutiques visibles et pertinentes (pas un classement par ventes), modifiable ensuite. Seules les pages publiques autorisées par robots.txt sont lues.</p>
+{% if candidates %}<details class="src"><summary>Candidats proposés</summary><ul class="small">{% for c in candidates %}<li>{{ c.name }} — {{ c.reason }}</li>{% endfor %}</ul></details>{% endif %}</div>
+<p><button class="btn primary">Générer la prévisualisation privée</button></p></form>
+{% endblock %}

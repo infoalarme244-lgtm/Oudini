@@ -1,0 +1,3 @@
+{% extends "store/base.html" %}{% block content %}<div style="max-width:480px;margin:24px auto"><h1>Suivi de commande</h1>{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<form method="post" class="form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="n">Numéro de commande</label><input class="f" id="n" name="number" required>
+<label for="e">Email</label><input class="f" id="e" name="email" type="email" required><p><button class="btn primary block">Suivre</button></p></form></div>{% endblock %}

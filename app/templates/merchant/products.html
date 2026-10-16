@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% block content %}
+<h1>Produits & stocks</h1>
+{% if has_demo %}<div class="alert warn">Des produits de <strong>démonstration</strong> sont présents (fictifs). Ils bloquent la publication.
+<form class="inline" method="post" action="/app/shops/{{ shop.id }}/catalog/purge-demo"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm danger">Supprimer les données de démo</button></form></div>{% endif %}
+<div class="row"><form method="get" style="display:flex;gap:8px;flex:2"><label class="sr" for="q">Recherche</label><input id="q" name="q" value="{{ q }}" placeholder="Titre, marque, SKU"><button class="btn">Chercher</button></form>
+<form method="post" action="/app/shops/{{ shop.id }}/products/new" style="display:flex;gap:8px;flex:2"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label class="sr" for="nt">Nouveau produit</label><input id="nt" name="title" placeholder="Titre du nouveau produit" required><button class="btn primary">Créer</button></form></div>
+<form method="post" action="/app/shops/{{ shop.id }}/prices/bulk"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div class="card"><div class="tablewrap"><table><tr><th></th><th>Produit</th><th>Variante</th><th>SKU</th><th class="n">Prix TTC</th><th class="n">Coût</th><th class="n">Stock</th><th class="n">Réservé</th><th class="n">Dispo</th></tr>
+{% for p in products %}{% for v in p.variants %}<tr><td><input type="checkbox" name="variant_ids" value="{{ v.id }}" aria-label="Sélectionner {{ v.sku }}"></td>
+<td>{% if loop.first %}<a href="/app/shops/{{ shop.id }}/products/{{ p.id }}">{{ p.title }}</a> {% if p.is_demo %}<span class="badge b-warn">DÉMO</span>{% endif %}
+<span class="badge {{ 'b-ok' if p.status=='active' else 'b-mut' }}">{{ p.status }}</span>{% endif %}</td>
+<td class="small">{{ v.label }}</td><td class="mono">{{ v.sku }}</td><td class="n">{{ v.price_cents|money }}</td><td class="n">{{ v.cost_cents|money }}</td>
+<td class="n">{{ v.stock }}</td><td class="n">{{ v.reserved }}</td><td class="n">{% if v.available==0 %}<span class="badge b-bad">0</span>{% elif v.available<=v.reorder_point %}<span class="badge b-warn">{{ v.available }}</span>{% else %}{{ v.available }}{% endif %}</td></tr>
+{% else %}<tr><td></td><td><a href="/app/shops/{{ shop.id }}/products/{{ p.id }}">{{ p.title }}</a></td><td colspan="7" class="muted">aucune variante</td></tr>{% endfor %}
+{% else %}<tr><td colspan="9" class="muted">Aucun produit. <a href="/app/shops/{{ shop.id }}/import">Importer un catalogue</a></td></tr>{% endfor %}</table></div>
+<div class="row" style="margin-top:12px"><div><label for="pct">Variation de prix des variantes cochées (%)</label><input id="pct" name="change_pct" placeholder="-10 ou 5"></div>
+<div><button class="btn">Demander la modification (validation requise)</button></div></div>
+<p class="small muted">Une baisse qui ferait passer la marge contributive sous votre plancher est refusée variante par variante.</p></div></form>
+<div class="card"><h2>Ruptures & réapprovisionnement</h2><table><tr><th>Variante</th><th class="n">Dispo</th><th class="n">Vendu 30 j</th><th>Fournisseur</th><th class="n">Délai</th><th class="n">Suggestion</th><th>Base</th></tr>
+{% for r in reorder %}<tr><td>{{ r.variant.product.title }} {{ r.variant.label }}</td><td class="n">{{ r.available }}</td><td class="n">{{ r.sold_30d }}</td><td>{{ r.supplier }}</td><td class="n">{{ r.lead_time_days }} j</td><td class="n">{{ r.suggested_qty or '—' }}</td><td class="small muted">{{ r.basis }}</td></tr>
+{% else %}<tr><td colspan="7" class="muted">Rien à signaler</td></tr>{% endfor %}</table></div>
+{% endblock %}

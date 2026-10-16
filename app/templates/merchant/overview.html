@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block content %}
+<h1>{{ shop.name }}</h1>
+<p><span class="badge {{ 'b-ok' if shop.status=='published' else 'b-mut' }}">{{ {'draft':'Prévisualisation privée','published':'En ligne','paused':'Hors ligne'}[shop.status] }}</span>
+<span class="badge {{ 'b-warn' if shop.payment_mode=='test' else 'b-ok' }}">Paiements : mode {{ shop.payment_mode }}</span></p>
+<div class="card"><h2>Prévisualisation privée</h2><p class="small">Lien secret (partageable avec un relecteur) :</p>
+<p class="mono" style="word-break:break-all">/s/{{ shop.slug }}/?preview={{ shop.preview_token }}</p>
+<p><a class="btn primary" target="_blank" rel="noopener" href="/s/{{ shop.slug }}/?preview={{ shop.preview_token }}">Ouvrir la prévisualisation ↗</a>
+<form class="inline" method="post" action="/app/shops/{{ shop.id }}/preview-token"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm">Renouveler le lien</button></form></p></div>
+<div class="grid g2"><div class="card"><h2>Étapes avant la mise en ligne</h2><ol class="steps">
+{% for label, kind, done in steps %}<li>{{ '✅' if done else '⬜' }} {{ label }} <span class="badge b-{{ kind }}">{{ step_kind[kind] }}</span></li>{% endfor %}</ol></div>
+<div class="card"><h2>Préparation au lancement</h2><div class="score">{{ readiness.score }} %</div><div class="bar"><i style="width:{{ readiness.score }}%"></i></div>
+<p>{{ readiness.blocking|length }} blocage(s) réel(s).</p><ul class="small">{% for i in readiness.blocking[:6] %}<li>{{ i.label }}{% if i.detail %} — <span class="muted">{{ i.detail }}</span>{% endif %}</li>{% endfor %}</ul>
+<a class="btn" href="/app/shops/{{ shop.id }}/launch">Voir le détail</a></div></div>
+<div class="card"><h2>Tâches de fond récentes</h2><table><tr><th>#</th><th>Type</th><th>Statut</th><th>Résultat</th></tr>
+{% for j in jobs %}<tr><td>{{ j.id }}</td><td>{{ j.kind }}</td><td><span class="badge {{ 'b-ok' if j.status=='done' else 'b-bad' if j.status=='failed' else 'b-mut' }}">{{ j.status }}</span></td>
+<td class="small">{{ (j.result|tojson)[:160] if j.result else j.error[:160] }}</td></tr>{% else %}<tr><td colspan="4" class="muted">Aucune</td></tr>{% endfor %}</table>
+<p class="small muted">Les tâches sont exécutées par le worker (<span class="mono">python -m app.worker</span>).</p></div>
+{% endblock %}

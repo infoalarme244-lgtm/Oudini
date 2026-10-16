@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block content %}<h1>Réductions</h1>
+<p class="muted">Aucune fausse réduction : pas de prix barré inventé, pas de compte à rebours artificiel.</p>
+<div class="card"><table><tr><th>Code</th><th>Type</th><th>Valeur</th><th>Utilisations</th><th>Période</th><th>Rentabilité</th><th></th></tr>
+{% for d in discounts %}<tr><td class="mono">{{ d.code }}</td><td>{{ d.kind }}</td><td>{{ (d.value ~ ' %') if d.kind=='percent' else (d.value|money if d.kind=='fixed' else 'port offert') }}</td>
+<td>{{ d.used_count }}{{ ' / ' ~ d.usage_limit if d.usage_limit }}</td><td class="small">{{ d.starts_at or '—' }} → {{ d.ends_at or '—' }}</td>
+<td>{% if d.id in checks %}{% set bad = checks[d.id]|selectattr('deficit')|list %}{% if bad %}<span class="badge b-bad">{{ bad|length }} variante(s) déficitaire(s)</span>{% else %}<span class="badge b-ok">OK sur données connues</span>{% endif %}{% endif %}</td>
+<td><form method="post" action="/app/shops/{{ shop.id }}/discounts/{{ d.id }}/toggle"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm">{{ 'Désactiver' if d.active else 'Activer' }}</button></form></td></tr>{% endfor %}</table></div>
+<form class="card" method="post" action="/app/shops/{{ shop.id }}/discounts"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><h2>Nouveau code</h2><div class="row">
+<div><label for="c">Code</label><input id="c" name="code" required></div><div><label for="k">Type</label><select id="k" name="kind"><option value="percent">%</option><option value="fixed">Montant</option><option value="free_shipping">Port offert</option></select></div>
+<div><label for="v">Valeur</label><input id="v" name="value"></div><div><label for="m">Minimum d'achat (€)</label><input id="m" name="min_subtotal"></div><div><label for="u">Limite d'utilisations</label><input id="u" name="usage_limit"></div>
+<div><label for="s">Début</label><input id="s" type="datetime-local" name="starts_at"></div><div><label for="e">Fin</label><input id="e" type="datetime-local" name="ends_at"></div><div><button class="btn primary">Créer</button></div></div></form>{% endblock %}

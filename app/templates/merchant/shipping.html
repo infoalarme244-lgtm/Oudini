@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block content %}<h1>Livraison</h1>
+<p class="muted">Zones, tarifs, seuils de gratuité et délais selon vos choix. Le « coût réel » sert au calcul des marges. Intégration transporteur (étiquettes, suivi automatique) : connexion externe, non incluse dans le MVP — numéro de suivi saisi manuellement.</p>
+{% for z in zones %}<div class="card"><h2>{{ z.name }} <span class="small muted">{{ z.countries|join(', ') }}</span></h2>
+<table><tr><th>Option</th><th>Transporteur</th><th class="n">Prix client</th><th class="n">Gratuit dès</th><th>Délai</th><th class="n">Coût réel</th><th></th></tr>
+{% for r in z.rates %}<tr><td>{{ r.name }}</td><td>{{ r.carrier }}</td><td class="n">{{ r.price_cents|money }}</td><td class="n">{{ r.free_over_cents|money }}</td><td>{{ r.min_days }}–{{ r.max_days }} j</td><td class="n">{{ r.cost_cents|money }}</td>
+<td><form method="post" action="/app/shops/{{ shop.id }}/shipping/zones/{{ z.id }}/rates/{{ r.id }}/delete"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm danger">Supprimer</button></form></td></tr>
+{% else %}<tr><td colspan="7"><span class="badge b-bad">Aucun tarif : livraison impossible vers cette zone</span></td></tr>{% endfor %}</table>
+<form method="post" action="/app/shops/{{ shop.id }}/shipping/zones/{{ z.id }}/rates"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="row">
+<div><label>Nom<input name="name" required placeholder="Standard"></label></div><div><label>Transporteur<input name="carrier" placeholder="bpost, Colissimo…"></label></div>
+<div><label>Prix client (€)<input name="price" required></label></div><div><label>Gratuit dès (€)<input name="free_over"></label></div>
+<div><label>Délai min (j)<input name="min_days" type="number" min="0" required></label></div><div><label>Délai max (j)<input name="max_days" type="number" min="0" required></label></div>
+<div><label>Coût réel (€)<input name="cost"></label></div><div><button class="btn">Ajouter</button></div></div></form></div>{% endfor %}
+<form class="card" method="post" action="/app/shops/{{ shop.id }}/shipping/zones"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><h2>Nouvelle zone</h2><div class="row"><div><label>Nom<input name="name" required></label></div>
+<div><label>Pays (codes ISO, virgules)<input name="countries" required placeholder="LU, NL"></label></div><div><button class="btn">Créer</button></div></div></form>{% endblock %}

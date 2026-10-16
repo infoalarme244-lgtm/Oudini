@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block content %}<h1>Paiements</h1>
+<p>Mode actuel : <span class="badge {{ 'b-warn' if shop.payment_mode=='test' else 'b-ok' }}">{{ shop.payment_mode }}</span></p>
+<div class="card"><h2>Comptes connectés</h2><table><tr><th>Prestataire</th><th>Mode</th><th>Statut</th><th>Détail</th></tr>
+{% for a in accounts %}<tr><td>{{ a.provider }}</td><td>{{ a.mode }}</td><td>{{ a.status }}</td><td class="small">{{ a.account_label }}</td></tr>{% endfor %}</table>
+<p class="small muted">Aucune donnée de carte ne transite par la plateforme : le paiement a lieu sur la page hébergée Stripe. Les clés sont chiffrées en base et jamais réaffichées.</p></div>
+<div class="card"><h2>Connecter Stripe <span class="badge b-external">Connexion externe</span></h2>
+<ol class="small"><li>Créez ou ouvrez votre compte Stripe. L'ouverture du compte, la vérification d'identité et l'IBAN se font chez Stripe : la plateforme ne peut pas les faire à votre place.</li>
+<li>Activez dans Stripe les moyens de paiement voulus (carte, Bancontact pour la Belgique, PayPal si disponible sur votre compte…).</li>
+<li>Créez une clé restreinte (rk_…) ou utilisez la clé secrète du mode voulu.</li>
+<li>Ajoutez un endpoint webhook vers <span class="mono">{{ webhook_url }}</span> avec les événements <span class="mono">checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, checkout.session.expired, payment_intent.payment_failed, refund.updated</span>, puis copiez le secret whsec_….</li></ol>
+<form method="post" action="/app/shops/{{ shop.id }}/payments/stripe"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="row">
+<div><label for="m">Mode</label><select id="m" name="mode"><option value="test">Test</option><option value="live">Production</option></select></div>
+<div><label for="sk">Clé secrète</label><input id="sk" name="secret_key" type="password" autocomplete="off" required></div>
+<div><label for="wh">Secret webhook</label><input id="wh" name="webhook_secret" type="password" autocomplete="off" required></div>
+<div><label for="pk">Clé publiable (facultatif)</label><input id="pk" name="publishable_key"></div><div><button class="btn primary">Connecter</button></div></div></form></div>
+<div class="card"><h2>Paiements réels</h2>{% if shop.payment_mode=='test' %}<form method="post" action="/app/shops/{{ shop.id }}/payments/live/request"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<p class="small">Nécessite un compte Stripe live connecté. L'activation est une action engageante soumise à votre validation explicite.</p><button class="btn">Demander l'activation</button></form>
+{% else %}<form method="post" action="/app/shops/{{ shop.id }}/payments/test-mode"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger">Revenir au mode test</button></form>{% endif %}</div>
+<div class="card"><h2>Derniers événements reçus</h2><table><tr><th>Reçu</th><th>Prestataire</th><th>Type</th><th>ID</th><th>Effet</th></tr>{% for e in events %}<tr><td class="small">{{ e.received_at.strftime('%d/%m %H:%M:%S') }}</td><td>{{ e.provider }}</td><td class="mono">{{ e.type }}</td><td class="mono">{{ e.event_id[:24] }}</td><td class="small">{{ e.result }}</td></tr>{% endfor %}</table></div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/app/shops/{{ shop.id }}/orders">← Commandes</a></p>
+<h1>Commande {{ o.number }} <span class="badge">{{ STATUS_FR[o.status] }}</span> <span class="badge {{ 'b-warn' if o.payment_mode=='test' else 'b-ok' }}">{{ o.payment_mode }}</span></h1>
+<div class="grid g2"><div class="card"><h2>Articles</h2><table><tr><th>Article</th><th class="n">Qté</th><th class="n">Prix</th><th class="n">Coût</th></tr>
+{% for it in o.items %}<tr><td>{{ it.title }} <span class="small muted">{{ it.variant_label }} · {{ it.sku }}</span></td><td class="n">{{ it.qty }}</td><td class="n">{{ it.unit_price_cents|money }}</td><td class="n">{{ it.unit_cost_cents|money }}</td></tr>{% endfor %}
+<tr><td colspan="2">Sous-total</td><td class="n" colspan="2">{{ o.subtotal_cents|money }}</td></tr>{% if o.discount_cents %}<tr><td colspan="2">Réduction {{ o.discount_code }}</td><td class="n" colspan="2">−{{ o.discount_cents|money }}</td></tr>{% endif %}
+<tr><td colspan="2">Livraison {{ o.shipping_method.get('name','') }}</td><td class="n" colspan="2">{{ o.shipping_cents|money }}</td></tr>
+<tr><td colspan="2"><strong>Total TTC</strong> <span class="small muted">dont TVA {{ o.tax_cents|money }}</span></td><td class="n" colspan="2"><strong>{{ o.total_cents|money }}</strong></td></tr>
+{% if o.refunded_cents %}<tr><td colspan="2">Remboursé</td><td class="n" colspan="2">−{{ o.refunded_cents|money }}</td></tr>{% endif %}</table>
+<p class="small">{{ o.email }} · {{ o.address.get('name') }}, {{ o.address.get('line1') }}, {{ o.address.get('postal_code') }} {{ o.address.get('city') }} ({{ o.country }}) · canal : {{ o.channel }}</p>
+<p class="small muted">Stock : {{ o.stock_state }} · Prestataire : {{ o.provider }} {{ o.provider_ref }}</p></div>
+<div class="card"><h2>Historique des statuts</h2><ul class="small">{% for h in o.status_history %}<li>{{ h.at[:16].replace('T',' ') }} — {{ STATUS_FR.get(h.to, h.to) }} {% if h.note %}<span class="muted">({{ h.note }})</span>{% endif %}</li>{% endfor %}</ul>
+<h3>Événements prestataire</h3><ul class="small mono">{% for e in events %}<li>{{ e.received_at.strftime('%H:%M:%S') }} {{ e.type }} → {{ e.result }}</li>{% else %}<li>aucun</li>{% endfor %}</ul></div></div>
+<div class="grid g3">
+{% if o.status=='paid' %}<form class="card" method="post" action="/app/shops/{{ shop.id }}/orders/{{ o.id }}/fulfil"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><h2>Expédier</h2>
+<label for="tr">N° de suivi</label><input id="tr" name="tracking"><p><button class="btn primary">Marquer expédiée</button></p></form>{% endif %}
+{% if o.status in ('paid','fulfilled','partially_refunded') %}<form class="card" method="post" action="/app/shops/{{ shop.id }}/orders/{{ o.id }}/refund"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><h2>Rembourser</h2>
+<label for="am">Montant (€) — max {{ (o.total_cents - o.refunded_cents)|money }}</label><input id="am" name="amount" value="{{ '%.2f'|format((o.total_cents-o.refunded_cents)/100) }}">
+<label for="rs">Motif</label><input id="rs" name="reason">{% for it in o.items %}<label for="rk{{ it.id }}">Remettre en stock : {{ it.title }} {{ it.variant_label }}</label><input id="rk{{ it.id }}" name="restock_{{ it.id }}" type="number" min="0" max="{{ it.qty }}" value="0">{% endfor %}
+{% for r in returns if r.status=='requested' %}<input type="hidden" name="return_id" value="{{ r.id }}">{% endfor %}
+<p><button class="btn primary">Rembourser via {{ o.provider }}</button></p><p class="small muted">Le statut suit la confirmation du prestataire.</p></form>
+<form class="card" method="post" action="/app/shops/{{ shop.id }}/orders/{{ o.id }}/return"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><h2>Enregistrer un retour</h2>
+<label for="rr">Motif</label><select id="rr" name="reason"><option value="size">Taille</option><option value="defect">Défaut</option><option value="changed_mind">Rétractation</option><option value="other">Autre</option></select>
+<label for="rc">Commentaire</label><input id="rc" name="comment"><p><button class="btn">Enregistrer</button></p></form>{% endif %}
+{% if o.status in ('pending_payment','payment_failed') %}<form class="card" method="post" action="/app/shops/{{ shop.id }}/orders/{{ o.id }}/cancel"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><h2>Annuler</h2><p class="small">Libère le stock réservé.</p><button class="btn danger">Annuler la commande</button></form>{% endif %}
+</div>
+{% if returns %}<div class="card"><h2>Retours</h2><ul>{% for r in returns %}<li>{{ r.created_at.strftime('%d/%m') }} — {{ r.reason }} — {{ r.status }} {{ r.comment }}</li>{% endfor %}</ul></div>{% endif %}
+{% endblock %}

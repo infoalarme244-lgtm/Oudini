@@ -1,0 +1,16 @@
+fastapi==0.143.2
+uvicorn==0.53.0
+SQLAlchemy==2.1.4
+Jinja2==3.1.6
+python-multipart==0.0.32
+itsdangerous
+cryptography
+httpx==0.28.1
+beautifulsoup4
+openpyxl
+stripe==16.0.0
+anthropic==1.15.0
+# tests
+pytest==9.1.1
+playwright==1.64.0
+psycopg[binary]==3.3.6

@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block content %}
+<h1>Fournisseurs & guides des tailles</h1>
+<div class="grid g2"><div class="card"><h2>Fournisseurs</h2><table><tr><th>Nom</th><th>Email</th><th class="n">Délai</th></tr>{% for s in suppliers %}<tr><td>{{ s.name }}</td><td>{{ s.email }}</td><td class="n">{{ s.lead_time_days }} j</td></tr>{% endfor %}</table>
+<form method="post" action="/app/shops/{{ shop.id }}/suppliers"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="row"><div><label for="sn">Nom</label><input id="sn" name="name" required></div>
+<div><label for="se">Email</label><input id="se" name="email"></div><div><label for="sl">Délai (j)</label><input id="sl" name="lead_time_days" type="number" value="7"></div><div><button class="btn">Ajouter</button></div></div></form></div>
+<div class="card"><h2>Guides des tailles</h2>{% for g in guides %}<p><strong>{{ g.brand }} {{ g.model or '(générique)' }}</strong> <span class="badge b-mut">{{ g.vertical or '—' }}</span> — {{ g.rows|length }} tailles · {{ g.measure_label }} · source : {{ g.source_url or 'non renseignée' }} {% if g.notes %}<span class="small muted">{{ g.notes }}</span>{% endif %}</p>{% endfor %}
+<form method="post" action="/app/shops/{{ shop.id }}/size-guides"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="row">
+<div><label for="gv">Type de produit</label><select id="gv" name="vertical">{% for k,l,fit in fit_verticals %}<option value="{{ k }}">{{ l }} — {{ fit.measure_label }}</option>{% endfor %}</select></div>
+<div><label for="gb">Marque</label><input id="gb" name="brand" required></div><div><label for="gm">Modèle (vide = générique)</label><input id="gm" name="model"></div>
+<div><label for="ga">Aisance (vide = défaut)</label><input id="ga" name="allowance"></div></div><label for="gs">Source (tableau officiel ou fournisseur)</label><input id="gs" name="source_url">
+<label for="gr">Une ligne par taille : taille;équivalence;mesure maximale couverte</label><textarea id="gr" name="rows" placeholder="S;155–175 mm;175&#10;M;170–195 mm;195&#10;(chaussures : 42;UK 8 / US 9;265)"></textarea><p><button class="btn">Ajouter</button></p></form></div></div>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block content %}<h1>TVA</h1><div class="alert warn">Taux pré-remplis à titre indicatif (taux normaux). Vérifiez-les avec votre comptable : taux réduits, régime OSS pour la vente à distance dans l'UE, obligations de facturation.</div>
+<div class="card"><table><tr><th>Pays</th><th>Taux (%)</th><th>Note</th><th>Validé</th><th></th></tr>{% for t in taxes %}<tr>
+<td>{{ t.country }}</td><td><input form="tx{{ t.id }}" name="rate" value="{{ t.rate_bp/100 }}" style="width:80px" aria-label="Taux {{ t.country }}"></td><td class="small muted">{{ t.note }}</td>
+<td><input form="tx{{ t.id }}" type="checkbox" name="validated" value="1" {{ 'checked' if t.validated }} aria-label="Validé {{ t.country }}"></td>
+<td><form id="tx{{ t.id }}" method="post" action="/app/shops/{{ shop.id }}/taxes/{{ t.id }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm">Enregistrer</button></form></td></tr>{% endfor %}</table>
+<p class="small muted">Les prix affichés sont TTC ; la TVA incluse est calculée selon le pays de livraison.</p></div>{% endblock %}

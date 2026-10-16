@@ -1,0 +1,34 @@
+{% extends "store/base.html" %}{% block title %}{{ title }} — {{ snap.brand.name }}{% endblock %}
+{% block demo %}{% if p.is_demo %}<div class="banner demo">Produit de DÉMONSTRATION fictif</div>{% endif %}{% endblock %}
+{% block content %}<div class="pdp"><div class="gallery"><div class="main">{% if images %}<img src="{{ images[0].url }}" alt="{{ images[0].alt }}" width="800" height="800">{% else %}<span>Photo à venir</span>{% endif %}</div>
+{% if images|length>1 %}<div style="display:flex;gap:8px;margin-top:8px">{% for i in images[1:5] %}<img src="{{ i.url }}" alt="{{ i.alt }}" width="80" height="80" loading="lazy" style="border-radius:var(--radius)">{% endfor %}</div>{% endif %}</div>
+<div><p style="color:var(--muted);margin:0">{{ p.brand }}{{ ' · ' ~ p.model if p.model }}</p><h1>{{ title }}</h1>
+{% set prices = p.variants|selectattr('price_cents')|map(attribute='price_cents')|list %}
+<p style="font-size:1.4rem;font-weight:700">{{ (prices|min)|money if prices else 'Prix à venir' }}{% if prices and prices|min != prices|max %} – {{ (prices|max)|money }}{% endif %} <span style="font-size:13px;color:var(--muted);font-weight:400">TTC</span></p>
+<form method="post" action="{{ st.base }}/cart/add"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+{% for c in (colors or ['']) %}<fieldset style="border:0;padding:0;margin:0"><legend style="font-weight:700">{{ t(vp.axes.size) }}{{ ' — ' ~ c if c }}</legend><div class="sizes">
+{% for v in p.variants if v.color==c %}<label><input type="radio" name="variant_id" value="{{ v.id }}" required {{ 'disabled' if v.available==0 or v.price_cents is none }}>
+<span>{{ v.size or 'Unique' }}<small>{{ 'épuisé' if v.available==0 else ('plus que ' ~ v.available if v.available<=2 else t('En stock')) }}</small></span></label>{% endfor %}</div></fieldset>{% endfor %}
+<button class="btn primary block">{{ t('Ajouter au panier') }}</button></form>
+{% set out = p.variants|selectattr('available','equalto',0)|list %}
+{% if out %}<details class="panel"><summary><strong>{{ t('Me prévenir du retour en stock') }}</strong></summary><form method="post" action="{{ st.base }}/stock-alert" class="form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label for="sv">Taille</label><select class="f" id="sv" name="variant_id">{% for v in out %}<option value="{{ v.id }}">{{ v.label }}</option>{% endfor %}</select>
+<label for="se">Email</label><input class="f" id="se" type="email" name="email" required><p class="small" style="color:var(--muted)">Un seul email, au retour de cette taille. Aucune inscription marketing.</p><button class="btn block">M'alerter</button></form></details>{% endif %}
+{% if specs %}<div class="panel"><strong>Caractéristiques</strong><table class="cart">{% for l,v in specs %}<tr><td>{{ l }}</td><td>{{ v }}</td></tr>{% endfor %}</table></div>{% endif %}
+{% if vp.fit %}<div class="panel" id="sizehelp"><strong>{{ t(vp.fit.label) }}</strong>
+{% if guide %}<p class="small" style="color:var(--muted)">{{ 'Guide spécifique à ce modèle' if guide_level=='model' else 'Guide générique de la marque (moins précis pour ce modèle)' }}{{ ' · source : ' ~ guide.source_url if guide.source_url }}</p>
+<form id="sform" class="form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="product_id" value="{{ p.id }}">
+<label for="fm">{{ vp.fit.measure_label }}</label><div style="display:flex;gap:8px"><input class="f" id="fm" name="measure" inputmode="decimal" required placeholder="{{ guide_rows[guide_rows|length//2].measure|int if guide_rows else '' }}"><button class="btn">Conseil</button></div></form>
+<div id="sres" aria-live="polite" class="small"></div>
+<details><summary class="small">Tableau complet</summary><table class="cart"><tr><th>{{ vp.axes.size }}</th><th>{{ vp.fit.eq_label }}</th><th>Jusqu'à ({{ vp.fit.unit }})</th></tr>{% for r in guide_rows %}<tr><td>{{ vp.size_prefix }}{{ r.size }}</td><td>{{ r.eq }}</td><td>{{ r.measure }}</td></tr>{% endfor %}</table></details>
+{% else %}<p class="small">Pas de guide fiable pour ce produit : nous préférons ne rien recommander. <a href="{{ st.base }}/p/contact">Demandez-nous conseil</a>.</p>{% endif %}</div>{% endif %}
+<div class="facts">{% if delays %}<div><strong>{{ t('Livraison') }}</strong>{% for d in delays %}<br><span class="small">{{ d.zone }} : {{ d.min }}–{{ d.max }} jours ouvrés</span>{% endfor %}</div>{% endif %}
+<div><strong>{{ t('Retours') }}</strong><br><span class="small"><a href="{{ st.base }}/p/retours">Conditions de retour et d'échange</a></span></div>
+{% if p.origin %}<div><strong>Provenance</strong><br><span class="small">{{ p.origin }}</span></div>{% endif %}
+{% if p.authenticity %}<div><strong>Authenticité</strong><br><span class="small">{{ p.authenticity }}</span></div>{% endif %}
+{% if snap.home.reseller_notice %}<div class="small" style="color:var(--muted)">{{ snap.home.reseller_notice }}</div>{% endif %}</div>
+{% if p.description %}<div class="prose" style="margin-top:16px">{{ p.description|md }}</div>{% endif %}</div></div>
+<script>const sf=document.getElementById('sform');if(sf){sf.addEventListener('submit',async e=>{e.preventDefault();const r=await fetch('{{ st.base }}/api/size',{method:'POST',body:new FormData(sf)});const d=await r.json();
+const out=document.getElementById('sres');out.textContent='';const p=document.createElement('p');p.textContent=d.message+(d.ok?' Niveau de certitude : '+({low:'faible',medium:'moyen',high:'élevé'}[d.confidence]||d.confidence)+'.':'');out.append(p);
+if(d.ok){const a=document.createElement('p');a.textContent=d.assumption+' '+d.basis+(d.in_stock?'':' — Cette taille est actuellement épuisée.');a.style.color='var(--muted)';out.append(a)}});}</script>
+{% endblock %}

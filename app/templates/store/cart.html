@@ -1,0 +1,9 @@
+{% extends "store/base.html" %}{% block content %}<h1 style="margin-top:24px">{{ t('Panier') }}</h1>
+{% for e in priced.errors %}<p class="err">{{ e }}</p>{% endfor %}
+{% if priced.lines %}<form method="post" action="{{ st.base }}/cart/update"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><table class="cart"><tr><th>Article</th><th>Qté</th><th class="n">Total</th></tr>
+{% for l in priced.lines %}<tr><td>{{ l.variant.product.title }} {% if l.variant.product.is_demo %}<span class="tag demo">DÉMO</span>{% endif %}<div class="small" style="color:var(--muted)">{{ l.variant.label }}</div></td>
+<td><label class="sr" for="q{{ l.variant.id }}">Quantité</label><input class="f" style="width:72px" id="q{{ l.variant.id }}" name="qty_{{ l.variant.id }}" type="number" min="0" max="{{ l.variant.available }}" value="{{ l.qty }}"></td><td class="n">{{ l.total|money }}</td></tr>{% endfor %}
+<tr><td colspan="2">Sous-total</td><td class="n">{{ priced.subtotal|money }}</td></tr>{% if priced.discount %}<tr><td colspan="2">Réduction</td><td class="n">−{{ priced.discount|money }}</td></tr>{% endif %}</table>
+<div style="display:flex;gap:8px;margin:12px 0"><label class="sr" for="dc">Code de réduction</label><input class="f" id="dc" name="discount_code" placeholder="Code de réduction" value="{{ cart.discount_code }}"><button class="btn">Mettre à jour</button></div></form>
+<p class="small" style="color:var(--muted)">Frais de livraison calculés à l'étape suivante selon votre pays.</p><a class="btn primary block" href="{{ st.base }}/checkout">{{ t('Commander') }}</a>
+{% else %}<p>Votre panier est vide.</p><a class="btn" href="{{ st.base }}/search">Voir le catalogue</a>{% endif %}{% endblock %}

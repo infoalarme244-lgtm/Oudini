@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block content %}
+<h1>Commandes</h1>
+<form method="get" class="row"><div><label for="st">Statut</label><select id="st" name="status"><option value="">Tous</option>{% for k,v in STATUS_FR.items() %}<option value="{{ k }}" {{ 'selected' if status==k }}>{{ v }}</option>{% endfor %}</select></div>
+<div><label for="md">Mode</label><select id="md" name="mode"><option value="">Tous</option><option value="test" {{ 'selected' if mode=='test' }}>Test</option><option value="live" {{ 'selected' if mode=='live' }}>Réel</option></select></div><div><button class="btn">Filtrer</button></div></form>
+<div class="card"><div class="tablewrap"><table><tr><th>N°</th><th>Date</th><th>Client</th><th>Statut</th><th>Mode</th><th class="n">Total</th><th class="n">Remboursé</th></tr>
+{% for o in orders %}<tr><td><a href="/app/shops/{{ shop.id }}/orders/{{ o.id }}">{{ o.number }}</a></td><td class="small">{{ o.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ o.email }}</td>
+<td><span class="badge {{ 'b-ok' if o.status in ('paid','fulfilled') else 'b-bad' if o.status in ('payment_failed','cancelled') else 'b-warn' }}">{{ STATUS_FR[o.status] }}</span></td>
+<td><span class="badge {{ 'b-warn' if o.payment_mode=='test' else 'b-ok' }}">{{ o.payment_mode }}</span></td><td class="n">{{ o.total_cents|money }}</td><td class="n">{{ o.refunded_cents|money if o.refunded_cents else '' }}</td></tr>
+{% else %}<tr><td colspan="7" class="muted">Aucune commande</td></tr>{% endfor %}</table></div></div>{% endblock %}

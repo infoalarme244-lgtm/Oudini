@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block content %}
+<h1>Proposition — version {{ version.number }}</h1><p class="muted">{{ version.message }}</p>
+{% for n in notes %}<div class="alert warn">{{ n }}</div>{% endfor %}
+<p><a class="btn" target="_blank" rel="noopener" href="/s/{{ shop.slug }}/?preview={{ shop.preview_token }}&version={{ version.id }}">Prévisualiser cette version ↗</a></p>
+<div class="card"><h2>Changements ({{ changes|length }})</h2><div class="tablewrap"><table><tr><th>Élément</th><th>Avant</th><th>Après</th></tr>
+{% for c in changes[:80] %}<tr><td class="mono">{{ c.path }}</td><td class="diff del">{{ (c.before|tojson_pretty)[:400] }}</td><td class="diff add">{{ (c.after|tojson_pretty)[:400] }}</td></tr>{% endfor %}</table></div></div>
+{% if version.status=='proposed' %}<form class="inline" method="post" action="/app/shops/{{ shop.id }}/content/versions/{{ version.id }}/apply"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn primary">Appliquer au brouillon</button></form>
+<form class="inline" method="post" action="/app/shops/{{ shop.id }}/content/versions/{{ version.id }}/discard"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn">Écarter</button></form>{% endif %}
+<p class="small muted">Appliquer met à jour le brouillon (prévisualisation). La boutique en ligne ne change qu'après une nouvelle publication validée.</p>
+{% endblock %}
