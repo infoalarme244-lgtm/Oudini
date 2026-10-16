@@ -24,6 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import stripe  # noqa: E402
 
 OK, KO = "✅", "❌"
+# Paiement confirmé côté serveur avec une carte de test : pas de redirection (3DS, Bancontact…) possible ici.
+AUTO_NO_REDIRECT = {"enabled": True, "allow_redirects": "never"}
 results = []
 
 
@@ -50,7 +52,7 @@ def main():
 
     def card_ok():
         pi = c.v1.payment_intents.create(params={"amount": 12900, "currency": "eur", "payment_method": "pm_card_visa",
-                                                 "payment_method_types": ["card"], "confirm": True,
+                                                 "automatic_payment_methods": AUTO_NO_REDIRECT, "confirm": True,
                                                  "metadata": {"shopforge_check": run}},
                                          options={"idempotency_key": f"chk-ok-{run}"})
         assert pi.status == "succeeded", pi.status
@@ -61,7 +63,7 @@ def main():
     def card_declined():
         try:
             c.v1.payment_intents.create(params={"amount": 5000, "currency": "eur", "payment_method": "pm_card_chargeDeclined",
-                                                "payment_method_types": ["card"], "confirm": True},
+                                                "automatic_payment_methods": AUTO_NO_REDIRECT, "confirm": True},
                                         options={"idempotency_key": f"chk-ko-{run}"})
         except stripe.CardError as exc:
             assert exc.code == "card_declined", exc.code
@@ -78,8 +80,12 @@ def main():
     check("4. Remboursements partiel + total", lambda: refunds() if "pi" in state else (_ for _ in ()).throw(RuntimeError("étape 2 en échec")))
 
     def bancontact():
-        pi = c.v1.payment_intents.create(params={"amount": 4900, "currency": "eur", "payment_method_types": ["bancontact"]})
-        return f"Bancontact accepté par le compte ({pi.status})"
+        # Comptes récents : les moyens de paiement se règlent dans le dashboard ; on lit ceux que Stripe rend éligibles.
+        pi = c.v1.payment_intents.create(params={"amount": 4900, "currency": "eur", "automatic_payment_methods": {"enabled": True}})
+        c.v1.payment_intents.cancel(pi.id)
+        methods = list(pi.payment_method_types or [])
+        assert "bancontact" in methods, f"Bancontact absent des moyens éligibles : {methods}"
+        return f"Bancontact éligible en EUR ; moyens actifs : {', '.join(methods)}"
     check("5. Bancontact activé", bancontact)
 
     def checkout_via_app():
