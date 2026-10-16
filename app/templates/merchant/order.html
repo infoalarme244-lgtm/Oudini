@@ -24,5 +24,8 @@
 <label for="rc">Commentaire</label><input id="rc" name="comment"><p><button class="btn">Enregistrer</button></p></form>{% endif %}
 {% if o.status in ('pending_payment','payment_failed') %}<form class="card" method="post" action="/app/shops/{{ shop.id }}/orders/{{ o.id }}/cancel"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><h2>Annuler</h2><p class="small">Libère le stock réservé.</p><button class="btn danger">Annuler la commande</button></form>{% endif %}
 </div>
+{% if o.refunds %}<div class="card"><h2>Remboursements</h2><ul>{% for r in o.refunds %}<li>{{ r.created_at.strftime('%d/%m %H:%M') }} — {{ r.amount_cents|money }} —
+<span class="badge {{ 'b-ok' if r.status=='succeeded' else 'b-bad' if r.status=='failed' else 'b-warn' }}">{{ {'succeeded':'effectué','pending':'en cours','pending_approval':"en attente d'approbation Stripe",'failed':'refusé'}.get(r.status, r.status) }}</span>
+<span class="small muted">{{ r.reason }}</span></li>{% endfor %}</ul></div>{% endif %}
 {% if returns %}<div class="card"><h2>Retours</h2><ul>{% for r in returns %}<li>{{ r.created_at.strftime('%d/%m') }} — {{ r.reason }} — {{ r.status }} {{ r.comment }}</li>{% endfor %}</ul></div>{% endif %}
 {% endblock %}

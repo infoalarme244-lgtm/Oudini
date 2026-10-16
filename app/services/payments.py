@@ -110,11 +110,27 @@ class StripeProvider:
         return session.url
 
     def refund(self, order: Order, amount: int, idem: str) -> dict:
+        import stripe
         session = self.client.v1.checkout.sessions.retrieve(order.provider_ref)
-        r = self.client.v1.refunds.create(params={"payment_intent": session.payment_intent, "amount": amount,
-                                                  "metadata": {"order_id": str(order.id)}},
-                                          options={"idempotency_key": idem})
+        try:
+            r = self.client.v1.refunds.create(params={"payment_intent": session.payment_intent, "amount": amount,
+                                                      "metadata": {"order_id": str(order.id), "shop_id": str(self.shop.id)}},
+                                              options={"idempotency_key": idem})
+        except stripe.PermissionError as exc:
+            approval = approval_request_id(str(exc))
+            if approval:  # clé configurée avec approbation humaine : le remboursement s'exécutera après validation
+                return {"id": "", "status": "pending_approval", "approval_id": approval}
+            raise
         return {"id": r.id, "status": r.status}
+
+
+def approval_request_id(message: str) -> str:
+    """Identifiant de demande d'approbation Stripe (apreq_…) contenu dans un refus « requires human approval »."""
+    import re
+    if "approval" not in message.lower():
+        return ""
+    m = re.search(r"\b(apreq_[A-Za-z0-9_]+)", message)
+    return m.group(1) if m else ""
 
 
 
@@ -200,6 +216,14 @@ def handle_stripe_event(db, shop, event: dict) -> str:
     order = _order_for(db, shop.id, order_id=meta.get("order_id") or obj.get("client_reference_id"))
     if t.startswith("refund."):
         r = db.scalar(select(Refund).where(Refund.shop_id == shop.id, Refund.provider_ref == obj.get("id")))
+        if r is None and order is not None:
+            # remboursement exécuté après approbation : rattaché à la demande en attente de même montant
+            r = db.scalar(select(Refund).where(Refund.shop_id == shop.id, Refund.order_id == order.id,
+                                               Refund.status.in_(("pending", "pending_approval")),
+                                               Refund.amount_cents == obj.get("amount"), Refund.provider_ref == "")
+                          .order_by(Refund.id))
+            if r is not None:
+                r.provider_ref = obj.get("id", "")
         if r and obj.get("status") == "succeeded" and r.status != "succeeded":
             apply_refund_success(db, r)
             ev.result = "remboursement confirmé"
@@ -236,7 +260,7 @@ def refund_order(db, shop, order: Order, amount_cents: int, reason: str, restock
         raise PaymentError("Commande d'une autre boutique")
     if order.status not in ("paid", "fulfilled", "partially_refunded"):
         raise PaymentError(f"Remboursement impossible au statut {order.status}")
-    remaining = order.total_cents - order.refunded_cents - sum(r.amount_cents for r in order.refunds if r.status == "pending")
+    remaining = order.total_cents - order.refunded_cents - sum(r.amount_cents for r in order.refunds if r.status in ("pending", "pending_approval"))
     if amount_cents <= 0 or amount_cents > remaining:
         raise PaymentError(f"Montant invalide (maximum remboursable : {remaining/100:.2f} €)")
     item_ids = {it.id: it for it in order.items}
@@ -255,6 +279,9 @@ def refund_order(db, shop, order: Order, amount_cents: int, reason: str, restock
         audit(db, shop.id, user_id, "refund.failed", "order", order.id, after={"error": str(exc)[:300]})
         raise PaymentError(f"Le prestataire a refusé le remboursement : {exc}") from exc
     refund.provider_ref = res["id"]
+    if res["status"] == "pending_approval":
+        refund.status = "pending_approval"
+        refund.reason = (refund.reason + f" [approbation Stripe {res.get('approval_id', '')}]").strip()
     if res["status"] == "succeeded":
         apply_refund_success(db, refund)
     elif res["status"] in ("failed", "canceled"):

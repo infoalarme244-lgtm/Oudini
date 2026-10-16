@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import stripe  # noqa: E402
 
-OK, KO = "✅", "❌"
+OK, KO, WAIT = "✅", "❌", "⏳"
 # Paiement confirmé côté serveur avec une carte de test : pas de redirection (3DS, Bancontact…) possible ici.
 AUTO_NO_REDIRECT = {"enabled": True, "allow_redirects": "never"}
 results = []
@@ -33,6 +33,14 @@ def check(label, fn):
     try:
         detail = fn()
         results.append((OK, label, detail or ""))
+    except stripe.PermissionError as exc:
+        from app.services.payments import approval_request_id
+        apreq = approval_request_id(str(exc))
+        if apreq:  # clé restreinte avec approbation humaine : ce n'est pas une erreur
+            results.append((WAIT, label, f"en attente d'approbation humaine ({apreq}) : approuvez-la dans le dashboard Stripe, "
+                                         "ou autorisez les remboursements sur la clé, puis relancez"))
+        else:
+            results.append((KO, label, f"PermissionError: {exc}"))
     except Exception as exc:  # on rapporte l'erreur Stripe telle quelle
         results.append((KO, label, f"{type(exc).__name__}: {getattr(exc, 'user_message', None) or exc}"))
 
@@ -121,7 +129,7 @@ def main():
     print("\nÉtape manuelle : ouvrir l'URL Checkout, payer avec 4242 4242 4242 4242 (accepté) puis recommencer avec "
           "4000 0000 0000 0002 (refusé) ; tester Bancontact sur la page de test Stripe.\n"
           "Webhook : stripe listen --forward-to localhost:8000/webhooks/stripe/<shop_id> puis vérifier le statut de la commande.")
-    sys.exit(0 if all(s == OK for s, _, _ in results) else 1)
+    sys.exit(0 if all(s in (OK, WAIT) for s, _, _ in results) else 1)
 
 
 if __name__ == "__main__":

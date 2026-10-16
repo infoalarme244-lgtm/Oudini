@@ -98,7 +98,7 @@ def test_refunds_partial_then_full_with_restock(app, merchant, db):
     o = db.get(Order, o.id)
     item = o.items[0]
     r = merchant.post(f"/app/shops/{shop.id}/orders/{o.id}/refund", {"amount": "10,00", "reason": "geste", f"restock_{item.id}": "0"})
-    assert "succeeded" in r.text
+    assert "Remboursement effectué" in r.text
     db.expire_all()
     o = db.get(Order, o.id)
     assert o.status == "partially_refunded" and o.refunded_cents == 1000
@@ -267,3 +267,60 @@ def test_card_data_never_requested(app, merchant, db):
     from app.models import Base
     cols = {c.name for t in Base.metadata.tables.values() for c in t.columns}
     assert not any(k in cols for k in ("card_number", "cvc", "cvv", "pan"))
+
+
+def test_stripe_refund_pending_human_approval(app, merchant, db, monkeypatch):
+    """Clé restreinte avec approbation humaine : le remboursement reste en attente puis se rattache au webhook."""
+    shop, v = setup_shop(merchant, db)
+    secret = "whsec_test_secret_123"
+    db.add(PaymentAccount(shop_id=shop.id, provider="stripe", mode="test", status="connected",
+                          secret_enc=encrypt_secret("rk_test_dummy"), webhook_secret_enc=encrypt_secret(secret)))
+    db.commit()
+    s = Shopper(app, shop.slug, shop.preview_token)
+    orig = payments.provider_for
+    payments.provider_for = lambda db_, shop_: payments.SimulatorProvider(shop_)
+    try:
+        o = order_from_redirect(db, s.buy(v.id))
+    finally:
+        payments.provider_for = orig
+    ev = {"id": "evt_paid", "type": "checkout.session.completed", "livemode": False,
+          "data": {"object": {"id": "cs_test_x", "payment_status": "paid", "amount_total": o.total_cents, "currency": "eur",
+                              "metadata": {"order_id": str(o.id), "shop_id": str(shop.id)}}}}
+    pl = json.dumps(ev)
+    s.c.post(f"/webhooks/stripe/{shop.id}", content=pl, headers={"stripe-signature": _stripe_sig(pl, secret)})
+    db.expire_all()
+    o = db.get(Order, o.id)
+    assert o.status == "paid"
+    o.provider = "stripe"
+    db.commit()
+    import stripe
+
+    class FakeSessions:
+        def retrieve(self, sid):
+            return type("S", (), {"payment_intent": "pi_test_1"})()
+
+    class FakeRefunds:
+        def create(self, params=None, options=None):  # message réel renvoyé par Stripe
+            raise stripe.PermissionError("This action requires human approval before it can be completed. An approval request has "
+                                         "been created and is awaiting review. To check status: GET /v2/core/approval_requests/"
+                                         "apreq_test_61VaYKUbmN8NovtAn16VaXmt.")
+    fake = type("C", (), {"v1": type("V", (), {"checkout": type("K", (), {"sessions": FakeSessions()})(), "refunds": FakeRefunds()})()})()
+    monkeypatch.setattr(payments.StripeProvider, "__init__", lambda self, shop_, acc: setattr(self, "client", fake) or setattr(self, "shop", shop_))
+    r = merchant.post(f"/app/shops/{shop.id}/orders/{o.id}/refund", {"amount": f"{o.total_cents/100:.2f}", "reason": "retour"})
+    assert "attente d&#39;approbation" in r.text or "attente d'approbation" in r.text
+    db.expire_all()
+    o = db.get(Order, o.id)
+    assert o.status == "paid" and o.refunded_cents == 0 and o.refunds[0].status == "pending_approval"
+    assert "apreq_test_61VaYKUbmN8NovtAn16VaXmt" in o.refunds[0].reason
+    r = merchant.post(f"/app/shops/{shop.id}/orders/{o.id}/refund", {"amount": "1", "reason": "x"})
+    assert "Montant invalide" in r.text, "le montant en attente d'approbation est réservé"
+    # approbation dans le dashboard → Stripe exécute et notifie
+    ev2 = {"id": "evt_ref", "type": "refund.updated", "livemode": False,
+           "data": {"object": {"id": "re_test_1", "status": "succeeded", "amount": o.total_cents,
+                               "metadata": {"order_id": str(o.id), "shop_id": str(shop.id)}}}}
+    pl2 = json.dumps(ev2)
+    res = s.c.post(f"/webhooks/stripe/{shop.id}", content=pl2, headers={"stripe-signature": _stripe_sig(pl2, secret)}).json()
+    assert res["result"] == "remboursement confirmé"
+    db.expire_all()
+    o = db.get(Order, o.id)
+    assert o.status == "refunded" and o.refunds[0].provider_ref == "re_test_1"

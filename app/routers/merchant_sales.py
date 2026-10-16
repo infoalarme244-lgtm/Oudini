@@ -58,7 +58,10 @@ async def order_refund(oid: int, request: Request, ctx: ShopCtx = Depends(shop_c
         ret = get_owned(db, ReturnRequest, ctx.shop.id, int(rid))
         ret.status = "refunded"
     db.commit()
-    return redirect(f"/app/shops/{ctx.shop.id}/orders/{o.id}", f"Remboursement : {r.status}")
+    msg = {"succeeded": "Remboursement effectué", "pending": "Remboursement en cours chez le prestataire",
+           "pending_approval": "Remboursement en attente d'approbation dans votre dashboard Stripe : la commande sera mise à jour à l'exécution",
+           "failed": "Remboursement refusé"}.get(r.status, r.status)
+    return redirect(f"/app/shops/{ctx.shop.id}/orders/{o.id}", msg)
 
 
 @router.post("/orders/{oid}/fulfil")
