@@ -1,4 +1,20 @@
-{% extends "base.html" %}{% block bare %}<div style="padding:24px 16px;max-width:760px"><h1>Nouvelle boutique</h1>
+{% extends "base.html" %}{% block bare %}{% if not expert %}
+<div class="simple-start" style="padding:24px 16px"><h1>Créez votre boutique</h1>
+<p class="muted">Une photo de votre produit suffit. Nous préparons tout le reste : vous n'aurez qu'à vérifier et valider.</p>
+{% if error %}<div class="alert bad">{{ error }}</div>{% endif %}
+<form class="card" method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="mode" value="simple">
+<div class="drop"><label for="sphoto" style="font-size:1.05rem;color:var(--text)"><strong>📷 La photo de votre produit</strong></label>
+<input id="sphoto" name="photo_file" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required></div>
+<label for="ptype">Que vendez-vous ?</label><select id="ptype" name="product_type"><option value="">Laisser l'IA deviner d'après la photo</option>
+{% for k,v in verticals.items() %}<option value="{{ k }}">{{ v.label }}</option>{% endfor %}</select>
+<label>Où voulez-vous vendre ?</label><div class="chips">{% for c,l in [('BE','Belgique'),('FR','France'),('LU','Luxembourg'),('NL','Pays-Bas')] %}
+<label><input type="checkbox" name="countries" value="{{ c }}" {{ 'checked' if c in ('BE','FR') }}> {{ l }}</label>{% endfor %}</div>
+<label for="sprompt">Un mot sur votre projet (facultatif)</label><input id="sprompt" name="prompt" placeholder="ex. montres vintage révisées, style élégant">
+<label><input type="checkbox" name="photo_rights" value="own" checked> C'est ma photo (ou j'ai l'autorisation de l'utiliser)</label>
+<p><button class="btn primary" style="width:100%;justify-content:center;padding:14px">Créer ma boutique</button></p>
+<p class="small muted">Gratuit à l'essai, rien n'est publié sans votre validation. Les métadonnées de la photo (GPS…) sont supprimées.</p></form>
+<p class="small muted" style="text-align:center">Vous avez un catalogue, une URL concurrente ou un projet détaillé ? <a href="/app/new?expert=1">Mode expert</a></p></div>
+{% else %}<div style="padding:24px 16px;max-width:760px"><h1>Nouvelle boutique</h1>
 <p class="muted">Une seule entrée suffit : une photo, une description, une URL ou un catalogue. Vous pourrez tout modifier ensuite ; rien n'est publié sans votre validation.</p>
 {% if error %}<div class="alert bad">{{ error }}</div>{% endif %}
 <form class="card" method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -17,4 +33,4 @@
 <label for="file">3. Catalogue fournisseur CSV / XLSX (facultatif)</label><input id="file" name="catalog_file" type="file" accept=".csv,.xlsx">
 <label for="name">Nom de la boutique (facultatif — une proposition sera faite)</label><input id="name" name="name">
 <label><input type="checkbox" name="demo" value="1"> Ajouter des produits de démonstration (clairement marqués « DÉMO », à supprimer avant publication)</label>
-<p><button class="btn primary">Analyser ma demande</button></p></form></div>{% endblock %}
+<p><button class="btn primary">Analyser ma demande</button></p></form></div>{% endif %}{% endblock %}

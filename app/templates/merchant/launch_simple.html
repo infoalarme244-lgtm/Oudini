@@ -1,0 +1,73 @@
+{% extends "base.html" %}{% block content %}
+<h1>Lancer ma boutique</h1>
+<p class="muted">Tout a été préparé pour vous. Vérifiez, corrigez si besoin, validez. Rien n'est publié sans votre accord.</p>
+<ol class="wizard" aria-label="Étapes du lancement">{% for s in steps %}<li class="{{ 'done' if s.done }} {{ 'current' if s.n == current }}">
+<a href="?etape={{ s.n }}"><span class="num">{{ '✓' if s.done else s.n }}</span><span><strong>{{ s.title }}</strong><small>{{ s.hint }}</small></span></a></li>{% endfor %}</ol>
+
+{% if current == 1 %}<div class="card"><h2>1. Votre produit</h2>
+{% for p in products %}{% set sug = suggestions[p.id] %}{% set v = p.variants[0] if p.variants else none %}
+<form method="post" action="/app/shops/{{ shop.id }}/lancement/produit/{{ p.id }}" enctype="multipart/form-data" class="grid g2" style="align-items:start;margin-bottom:20px">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div>{% for i in p.images[:4] %}<img src="{{ i.url }}" alt="" style="width:{{ '100%' if loop.first else '23%' }};border-radius:10px;margin:0 1% 6px 0;display:inline-block">{% endfor %}
+{% if not p.images %}<p class="muted">Ajoutez une photo de votre produit.</p>{% endif %}
+<label for="ph{{ p.id }}">Ajouter des photos</label><input id="ph{{ p.id }}" type="file" name="photos" accept="image/jpeg,image/png,image/webp" multiple>
+<label><input type="checkbox" name="photo_rights" value="1" checked> Ce sont mes photos (ou j'ai l'autorisation de les utiliser)</label></div>
+{% set placeholder_title = p.title == 'Mon produit' %}
+<div><label for="t{{ p.id }}">Titre{% if ai_filled and not placeholder_title %} <span class="badge b-auto">proposé par l'IA</span>{% endif %}</label>
+<input id="t{{ p.id }}" name="title" value="{{ '' if placeholder_title else p.title }}" required placeholder="ex. Montre automatique acier 40 mm">
+<label for="d{{ p.id }}">Description{% if ai_filled and p.description %} <span class="badge b-auto">proposée par l'IA, à relire</span>{% endif %}</label>
+<textarea id="d{{ p.id }}" name="description" placeholder="Ce qui le rend unique, ses dimensions, sa matière, son usage…">{{ p.description.replace('\n\n[À COMPLÉTER : vérifiez et complétez cette description.]','') }}</textarea>
+<div class="row"><div><label for="pr{{ p.id }}">Prix de vente TTC (€)</label>
+<input id="pr{{ p.id }}" name="price" inputmode="decimal" required value="{{ '%.2f'|format(v.price_cents/100) if v and v.price_cents else '%.2f'|format(sug.cents/100) }}"></div>
+<div><label for="st{{ p.id }}">Quantité en stock</label><input id="st{{ p.id }}" name="stock" type="number" min="0" required value="{{ v.stock if v and v.stock else '' }}" placeholder="ex. 5"></div></div>
+{% if not (v and v.price_cents) %}<p class="small muted">Prix suggéré : {{ sug.basis }}. C'est vous qui décidez.</p>{% endif %}
+{% if brands or p.brand %}<label for="sp{{ p.id }}">Comment vous procurez-vous ce produit{{ ' ' ~ (p.brand or brands|join(', ')) if (p.brand or brands) }} ?</label>
+<select id="sp{{ p.id }}" name="supply" required><option value="">— choisir —</option>{% for o in supply %}<option {{ 'selected' if o in (p.authenticity or '') }}>{{ o }}</option>{% endfor %}</select>
+<input type="hidden" name="brand" value="{{ p.brand or (brands[0] if brands else '') }}">
+<p class="small muted">La boutique affichera honnêtement votre statut (revendeur indépendant, sauf justificatif).</p>{% endif %}
+<p><button class="btn primary">{{ 'Mettre à jour' if p.status == 'active' else 'Valider ce produit' }}</button>
+{% if p.status == 'active' %}<span class="badge b-ok">en vente</span>{% endif %}</p></div></form>
+{% else %}<p class="muted">Aucun produit. <a href="/app/shops/{{ shop.id }}/products">Ajouter un produit</a> ou <a href="/app/shops/{{ shop.id }}/import">importer un catalogue</a>.</p>{% endfor %}
+<p><a class="btn" href="?etape=2">Étape suivante →</a></p></div>
+
+{% elif current == 2 %}<div class="card"><h2>2. Votre entreprise</h2>
+<p class="small muted">Les mentions légales, conditions de vente et politique de confidentialité sont rédigées automatiquement avec ces informations.</p>
+<form method="post" action="/app/shops/{{ shop.id }}/lancement/entreprise/recherche" class="row"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div style="flex:3"><label for="num">Numéro d'entreprise ou de TVA (Belgique : BCE, ex. 0123.456.789 · France : SIREN, ex. 123 456 789)</label>
+<input id="num" name="number" required value="{{ (shop.legal.get('vat_number') or '') }}"></div><div><button class="btn primary">Remplir automatiquement</button></div></form>
+{% if shop.legal.get('company_source') %}<p class="small"><span class="badge b-auto">registre public</span> {{ shop.legal.company_source }}</p>{% endif %}
+<form method="post" action="/app/shops/{{ shop.id }}/lancement/entreprise"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="grid g2">
+{% for k,l in [('company_name',"Nom de l'entreprise"),('legal_form','Forme juridique'),('address','Adresse'),('registration',"N° d'entreprise"),('vat_number','N° de TVA'),('email','Email de contact'),('phone','Téléphone'),('publisher','Responsable de la publication')] %}
+<div><label for="l_{{ k }}">{{ l }}</label><input id="l_{{ k }}" name="{{ k }}" value="{{ shop.legal.get(k,'') }}" required></div>{% endfor %}
+{% if 'FR' in shop.countries %}<div><label for="l_med">Médiateur de la consommation (obligatoire pour vendre en France)</label><input id="l_med" name="mediator" value="{{ shop.legal.get('mediator','') }}" required placeholder="Nom et site du médiateur auquel vous adhérez">
+<p class="small muted">Adhésion à faire auprès d'un médiateur agréé (liste sur economie.gouv.fr).</p></div>{% endif %}</div>
+<p><button class="btn primary">Enregistrer</button></p></form></div>
+
+{% elif current == 3 %}<div class="card"><h2>3. Recevoir les paiements</h2>
+{% if platform_mode %}
+{% if connect and connect.status == 'connected' %}<div class="alert ok">✓ {{ connect.account_label }}{{ ' (mode test)' if connect.mode == 'test' }}</div>
+{% else %}<p>Connectez votre compte bancaire pour recevoir l'argent de vos ventes. Cela se passe sur la page sécurisée de Stripe : vérification d'identité et IBAN. Vos coordonnées bancaires ne passent jamais par la plateforme.</p>
+{% if connect %}<p><span class="badge b-warn">{{ connect.account_label }}</span></p>{% endif %}
+<form method="post" action="/app/shops/{{ shop.id }}/lancement/paiements/connecter"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button class="btn primary">{{ 'Reprendre mon inscription' if connect else 'Connecter mon compte bancaire' }}</button></form>
+{% if connect %}<p class="small"><a href="/app/shops/{{ shop.id }}/lancement/paiements/retour">J'ai terminé sur Stripe, vérifier le statut</a></p>{% endif %}{% endif %}
+{% if platform_mode == 'test' %}<p class="small muted">Plateforme en mode test : aucun argent réel ne circule.</p>{% endif %}
+{% else %}<div class="alert warn">Les paiements ne sont pas encore activés sur la plateforme (configuration administrateur). En attendant, vos commandes de test passent par le simulateur.</div>
+<p class="small"><a href="/app/shops/{{ shop.id }}/payments">Mode expert : connecter vos propres clés Stripe</a></p>{% endif %}
+<p><a class="btn" href="?etape=4">Étape suivante →</a></p></div>
+
+{% else %}<div class="card"><h2>4. Vérifier et publier</h2>
+<p class="small muted">Voici ce qui a été préparé automatiquement. Tout est modifiable ; d'un clic, vous validez l'ensemble.</p>
+<div class="tablewrap"><table><tr><th>Élément</th><th>Préparé</th><th></th></tr>
+{% for r in recap %}<tr><td>{{ r.kind }}</td><td>{{ r.label }}{% if r.get('blocked') %} <span class="badge b-bad">à compléter (étape 2)</span>{% elif r.pending %} <span class="badge b-warn">à valider</span>{% else %} <span class="badge b-ok">validé</span>{% endif %}</td>
+<td><a class="small" href="/app/shops/{{ shop.id }}{{ r.fix }}">modifier</a></td></tr>{% endfor %}</table></div>
+<p><a class="btn" target="_blank" rel="noopener" href="/s/{{ shop.slug }}/?preview={{ shop.preview_token }}">Voir ma boutique ↗</a></p>
+{% if shop.status == 'published' %}<div class="alert ok">Votre boutique est en ligne : <a href="/s/{{ shop.slug }}/">/s/{{ shop.slug }}/</a></div>
+{% else %}<form method="post" action="/app/shops/{{ shop.id }}/lancement/publier"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label style="display:flex;gap:8px;color:var(--text)"><input type="checkbox" name="confirm" value="1" required> J'ai relu ces informations (livraison, TVA, pages légales, produit) et je les valide.</label>
+<p><button class="btn primary">Valider et publier</button></p></form>
+{% set left = readiness.blocking|rejectattr('key','in',['shipping_confirmed','taxes','legal_pages'])|list %}
+{% if left %}<p class="small muted">Encore nécessaire avant la mise en ligne : {{ left|map(attribute='label')|join(' · ') }}</p>{% endif %}{% endif %}
+</div>{% endif %}
+<p class="small muted" style="margin-top:20px">Vous préférez tout régler en détail ? <a href="/app/shops/{{ shop.id }}/launch">Mode expert</a></p>
+{% endblock %}

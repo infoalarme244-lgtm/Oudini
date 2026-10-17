@@ -25,6 +25,8 @@ def check(db, shop) -> dict:
     missing_c = [c for c in shop.countries if c not in covered]
     add("shipping", "Livraison configurée pour chaque pays ciblé", not missing_c,
         detail=("Pays sans tarif : " + ", ".join(missing_c)) if missing_c else "", fix="/shipping")
+    suggested = [f"{z.name} ({r.get('name')})" for z in zones for r in z.rates or [] if r.get("suggested")]
+    add("shipping_confirmed", "Tarifs de livraison proposés confirmés", not suggested, detail=", ".join(suggested), fix="/lancement")
     incomplete_rates = [r.get("name") for z in zones for r in z.rates or [] if r.get("min_days") in (None, "") or r.get("max_days") in (None, "")]
     add("shipping_delays", "Délais de livraison renseignés", zones and not incomplete_rates, True,
         detail=", ".join(incomplete_rates), fix="/shipping")

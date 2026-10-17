@@ -6,11 +6,15 @@
 <p class="mono" style="word-break:break-all">/s/{{ shop.slug }}/?preview={{ shop.preview_token }}</p>
 <p><a class="btn primary" target="_blank" rel="noopener" href="/s/{{ shop.slug }}/?preview={{ shop.preview_token }}">Ouvrir la prévisualisation ↗</a>
 <form class="inline" method="post" action="/app/shops/{{ shop.id }}/preview-token"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm">Renouveler le lien</button></form></p></div>
-<div class="grid g2"><div class="card"><h2>Étapes avant la mise en ligne</h2><ol class="steps">
-{% for label, kind, done in steps %}<li>{{ '✅' if done else '⬜' }} {{ label }} <span class="badge b-{{ kind }}">{{ step_kind[kind] }}</span></li>{% endfor %}</ol></div>
-<div class="card"><h2>Préparation au lancement</h2><div class="score">{{ readiness.score }} %</div><div class="bar"><i style="width:{{ readiness.score }}%"></i></div>
-<p>{{ readiness.blocking|length }} blocage(s) réel(s).</p><ul class="small">{% for i in readiness.blocking[:6] %}<li>{{ i.label }}{% if i.detail %} — <span class="muted">{{ i.detail }}</span>{% endif %}</li>{% endfor %}</ul>
-<a class="btn" href="/app/shops/{{ shop.id }}/launch">Voir le détail</a></div></div>
+{% set nb = simple_steps|selectattr('done')|list|length %}
+<div class="card"><h2>Lancement : {{ nb }} / 4</h2>
+<ol class="wizard">{% for s in simple_steps %}<li class="{{ 'done' if s.done }}"><a href="/app/shops/{{ shop.id }}/lancement?etape={{ s.n }}"><span class="num">{{ '✓' if s.done else s.n }}</span>
+<span><strong>{{ s.title }}</strong><small>{{ s.hint }}</small></span></a></li>{% endfor %}</ol>
+{% if nb < 4 %}<a class="btn primary" href="/app/shops/{{ shop.id }}/lancement">Continuer le lancement</a>{% endif %}</div>
+<details class="card"><summary><strong>Mode expert : détail de la préparation ({{ readiness.score }} %)</strong></summary>
+<ol class="steps">{% for label, kind, done in steps %}<li>{{ '✅' if done else '⬜' }} {{ label }} <span class="badge b-{{ kind }}">{{ step_kind[kind] }}</span></li>{% endfor %}</ol>
+<ul class="small">{% for i in readiness.blocking %}<li>{{ i.label }}{% if i.detail %} — <span class="muted">{{ i.detail }}</span>{% endif %}</li>{% endfor %}</ul>
+<a class="btn" href="/app/shops/{{ shop.id }}/launch">Voir le détail</a></details>
 <div class="card"><h2>Tâches de fond récentes</h2><table><tr><th>#</th><th>Type</th><th>Statut</th><th>Résultat</th></tr>
 {% for j in jobs %}<tr><td>{{ j.id }}</td><td>{{ j.kind }}</td><td><span class="badge {{ 'b-ok' if j.status=='done' else 'b-bad' if j.status=='failed' else 'b-mut' }}">{{ j.status }}</span></td>
 <td class="small">{{ (j.result|tojson)[:160] if j.result else j.error[:160] }}</td></tr>{% else %}<tr><td colspan="4" class="muted">Aucune</td></tr>{% endfor %}</table>

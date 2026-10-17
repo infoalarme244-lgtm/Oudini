@@ -26,6 +26,12 @@ class Settings:
     postmark_token: str = field(default_factory=lambda: os.getenv("POSTMARK_SERVER_TOKEN", ""))
     brevo_api_key: str = field(default_factory=lambda: os.getenv("BREVO_API_KEY", ""))
     smtp_url: str = field(default_factory=lambda: os.getenv("SMTP_URL", ""))  # smtp(s)://user:pass@host:port
+    # Stripe Connect : la plateforme encaisse pour le compte des commerçants, sans qu'ils manipulent de clés
+    stripe_platform_key: str = field(default_factory=lambda: os.getenv("STRIPE_PLATFORM_SECRET_KEY", ""))
+    stripe_platform_webhook_secret: str = field(default_factory=lambda: os.getenv("STRIPE_PLATFORM_WEBHOOK_SECRET", ""))
+    # Informations légales de la plateforme (hébergeur des boutiques), reprises automatiquement dans les mentions légales
+    platform_legal_host: str = field(default_factory=lambda: os.getenv("PLATFORM_LEGAL_HOST", ""))
+    company_lookup: bool = field(default_factory=lambda: _bool("SHOPFORGE_COMPANY_LOOKUP", True))
     sentry_dsn: str = field(default_factory=lambda: os.getenv("SENTRY_DSN", ""))
 
     def __post_init__(self):

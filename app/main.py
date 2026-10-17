@@ -56,8 +56,8 @@ def create_app() -> FastAPI:
         return HTMLResponse(templates.get_template("error.html").render(code=exc.status_code, detail=exc.detail),
                             status_code=exc.status_code)
 
-    from .routers import auth, merchant, merchant_catalog, merchant_growth, merchant_sales, store, webhooks
-    for r in (auth, merchant, merchant_catalog, merchant_sales, merchant_growth, store, webhooks):
+    from .routers import auth, launch, merchant, merchant_catalog, merchant_growth, merchant_sales, store, webhooks
+    for r in (auth, merchant, launch, merchant_catalog, merchant_sales, merchant_growth, store, webhooks):
         app.include_router(r.router)
     app.include_router(webhooks.one_click)
 

@@ -107,9 +107,10 @@ def to_brief(result: dict, rights: bool, url: str) -> tuple[list, list, dict]:
 
 def draft_product(result: dict, url: str, rights: bool, license_label: str) -> dict:
     v = result.get("vision") or {}
+    desc = (v.get("description_draft") or "").strip()
     return {
         "title": (v.get("title_suggestion") or v.get("product_type") or "Mon produit").strip()[:200],
-        "description": ((v.get("description_draft") or "").strip() + "\n\n[À COMPLÉTER : vérifiez et complétez cette description.]").strip(),
+        "description": (desc + "\n\n[À COMPLÉTER : vérifiez et complétez cette description.]") if desc else "",
         "category": v.get("vertical") or "",
         "usage": v.get("usage") or "",
         "gender": v.get("gender") or "",

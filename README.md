@@ -37,6 +37,18 @@ python -m pytest tests -q                                # tests
 
 Variables facultatives : `DATABASE_URL` (PostgreSQL en production), `ANTHROPIC_API_KEY` (synthèses et traductions IA, budget plafonné par boutique), `SENTRY_DSN`, `SHOPFORGE_ENV=prod` (rend la clé secrète obligatoire).
 
+## Parcours simple (par défaut)
+
+Le client n'a que trois choses à faire : fournir ses photos, connecter son compte bancaire et valider. Tout le reste est pré-rempli :
+
+1. **Créer** (`/app/new`) : une photo, le type de produit (ou « laisser l'IA deviner ») et les pays de vente. La boutique est générée immédiatement : contenu, thème, TVA, tarifs de livraison proposés et analyse des concurrents.
+2. **Votre produit** : titre et description proposés par l'IA (si une clé Claude est configurée) et prix suggéré (médiane des concurrents analysés, sinon fourchette du positionnement). Le client indique son stock et corrige si besoin.
+3. **Votre entreprise** : le numéro BCE/TVA ou SIREN suffit. Nom, adresse, forme juridique et n° de TVA sont repris des registres publics (VIES pour la Belgique, Annuaire des entreprises pour la France), et les pages légales sont rédigées avec ces informations.
+4. **Recevoir les paiements** : bouton « Connecter mon compte bancaire » ; l'identité et l'IBAN se règlent chez Stripe, via Stripe Connect.
+5. **Vérifier et publier** : récapitulatif de ce qui a été préparé, une case à cocher, publication. La case cochée vaut validation explicite et est tracée.
+
+Le mode expert (toutes les pages détaillées) reste accessible depuis le menu.
+
 ## Démarrer par une photo
 
 Sur `/app/new`, une seule photo du produit suffit. La boutique est alors construite autour d'elle :
@@ -60,7 +72,7 @@ Chaque étape est marquée *Automatique*, *Connexion externe* ou *Validation du 
 
 ## État à la livraison
 
-### Fonctionne et est testé (108 tests automatisés, sur SQLite et PostgreSQL 16, tous verts)
+### Fonctionne et est testé (117 tests automatisés, sur SQLite et PostgreSQL 16, tous verts)
 
 | Domaine | Vérifié par |
 |---|---|
@@ -80,6 +92,7 @@ Chaque étape est marquée *Automatique*, *Connexion externe* ou *Validation du 
 | Copilote de marge (calcul vérifié au centime), promotion déficitaire signalée, tableau de bord CA / marge brute / contributive / résultat net « non disponible » | `test_unit_economics_and_missing_data`, `test_dashboard_separates_metrics` |
 | Import CSV/XLSX avec rapport ligne par ligne, ré-import idempotent, export | `test_csv_import_validation_and_export`, `test_xlsx_import` |
 | Multi-catégories : détection (montres, bijoux, accessoires, beauté…), boutique mixte, filtres par caractéristique, aide au choix poignet/doigt/taille, INCI obligatoire, import `attr_*`, recommandations par verticale, boutique générique | `test_verticals.py`, `test_mobile_watch_shop` |
+| Parcours simple : création en un écran, pré-remplissage, recherche d'entreprise FR/BE (clés de contrôle, registres simulés), Stripe Connect (inscription, webhook par compte, paiement encaissé sur le compte du commerçant), validation et publication en un clic | `test_simple_launch.py`, `test_simple_launch_screens` |
 | Démarrage par photo : palette et contrastes, nettoyage des métadonnées, droits d'utilisation, analyse par Claude (simulée), animations et réduction des animations | `test_photo.py`, `test_photo_shop_animated` |
 | Édition par conversation (style, collection, traduction NL, pack rentable), prévisualisation, application, retour arrière | `test_chat_edit_preview_apply_rollback` |
 | Assistant d'achat limité aux données réelles, transfert au commerçant en cas de doute ; aide pointure avec incertitude ; A/B sans gagnant sur données insuffisantes ; veille avec suggestions qui protègent la marge | `test_features.py` |

@@ -83,7 +83,12 @@ class StripeProvider:
         if acc.mode != shop.payment_mode:
             raise PaymentError("Compte Stripe d'un autre mode")
         self.shop, self.acc = shop, acc
-        self.client = stripe.StripeClient(decrypt_secret(acc.secret_enc))
+        if acc.provider == "stripe_connect":  # clé de la plateforme, opérations au nom du compte connecté du commerçant
+            self.client = stripe.StripeClient(settings.stripe_platform_key)
+            self.opts = {"stripe_account": acc.connected_account_id}
+        else:
+            self.client = stripe.StripeClient(decrypt_secret(acc.secret_enc))
+            self.opts = {}
 
     def create_checkout(self, order: Order, base_url: str) -> str:
         line_items = [{"quantity": it.qty, "price_data": {"currency": order.currency.lower(), "unit_amount": it.unit_price_cents,
@@ -100,22 +105,22 @@ class StripeProvider:
         if order.discount_cents:
             coupon = self.client.v1.coupons.create(params={"amount_off": order.discount_cents, "currency": order.currency.lower(),
                                                            "duration": "once", "name": order.discount_code or "Réduction"},
-                                                   options={"idempotency_key": f"coupon-{order.idempotency_key}"})
+                                                   options={**self.opts, "idempotency_key": f"coupon-{order.idempotency_key}"})
             params["discounts"] = [{"coupon": coupon.id}]
         if order.shipping_cents:
             params["shipping_options"] = [{"shipping_rate_data": {"type": "fixed_amount", "display_name": order.shipping_method.get("name") or "Livraison",
                                                                   "fixed_amount": {"amount": order.shipping_cents, "currency": order.currency.lower()}}}]
-        session = self.client.v1.checkout.sessions.create(params=params, options={"idempotency_key": f"checkout-{order.idempotency_key}"})
+        session = self.client.v1.checkout.sessions.create(params=params, options={**self.opts, "idempotency_key": f"checkout-{order.idempotency_key}"})
         order.provider, order.provider_ref = self.name, session.id
         return session.url
 
     def refund(self, order: Order, amount: int, idem: str) -> dict:
         import stripe
-        session = self.client.v1.checkout.sessions.retrieve(order.provider_ref)
+        session = self.client.v1.checkout.sessions.retrieve(order.provider_ref, options=dict(self.opts))
         try:
             r = self.client.v1.refunds.create(params={"payment_intent": session.payment_intent, "amount": amount,
                                                       "metadata": {"order_id": str(order.id), "shop_id": str(self.shop.id)}},
-                                              options={"idempotency_key": idem})
+                                              options={**self.opts, "idempotency_key": idem})
         except stripe.PermissionError as exc:
             approval = approval_request_id(str(exc))
             if approval:  # clé configurée avec approbation humaine : le remboursement s'exécutera après validation
@@ -146,7 +151,7 @@ def parse_stripe_webhook(acc: PaymentAccount, payload: bytes, sig: str) -> dict:
 
 def provider_for(db, shop):
     acc = account(db, shop)
-    if acc and acc.provider == "stripe":
+    if acc and acc.provider in ("stripe", "stripe_connect"):
         return StripeProvider(shop, acc)
     if shop.payment_mode == "test" and acc and acc.provider == "simulator":
         return SimulatorProvider(shop)
@@ -301,3 +306,95 @@ def apply_refund_success(db, refund: Refund):
             it = next(i for i in order.items if i.id == int(ri["order_item_id"]))
             if it.variant_id:
                 inventory.restock(db, order.shop_id, it.variant_id, int(ri["qty"]))
+
+
+# ---------------------------------------------------------------- Stripe Connect (parcours simple)
+def platform_mode() -> str | None:
+    k = settings.stripe_platform_key
+    if k.startswith(("sk_test_", "rk_test_")):
+        return "test"
+    if k.startswith(("sk_live_", "rk_live_")):
+        return "live"
+    return None
+
+
+def _platform_client():
+    import stripe
+    if not platform_mode():
+        raise PaymentError("Paiements non configurés sur la plateforme (STRIPE_PLATFORM_SECRET_KEY)")
+    return stripe.StripeClient(settings.stripe_platform_key)
+
+
+def connect_account(db, shop) -> PaymentAccount | None:
+    return db.scalar(select(PaymentAccount).where(PaymentAccount.shop_id == shop.id, PaymentAccount.provider == "stripe_connect",
+                                                  PaymentAccount.mode == platform_mode()))
+
+
+def start_connect(db, shop, email: str, base_url: str, client=None) -> str:
+    """Crée (une fois) le compte connecté du commerçant et renvoie le lien d'inscription hébergé par Stripe :
+    identité, IBAN et vérifications se font chez Stripe, jamais sur la plateforme."""
+    c = client or _platform_client()
+    acc = connect_account(db, shop)
+    if acc is None:
+        a = c.v1.accounts.create(params={
+            "country": (shop.countries or ["BE"])[0], "email": email,
+            "controller": {"stripe_dashboard": {"type": "full"}, "fees": {"payer": "account"},
+                           "losses": {"payments": "stripe"}, "requirement_collection": "stripe"},
+            "metadata": {"shop_id": str(shop.id)}},
+            options={"idempotency_key": f"connect-{shop.id}-{platform_mode()}"})
+        acc = PaymentAccount(shop_id=shop.id, provider="stripe_connect", mode=platform_mode(), status="onboarding",
+                             connected_account_id=a.id, account_label="Inscription Stripe commencée")
+        db.add(acc)
+        db.flush()
+        audit(db, shop.id, None, "payment.connect_created", "payment_account", acc.id, after={"account": a.id})
+    link = c.v1.account_links.create(params={
+        "account": acc.connected_account_id, "type": "account_onboarding",
+        "refresh_url": f"{base_url}/app/shops/{shop.id}/lancement/paiements/connecter",
+        "return_url": f"{base_url}/app/shops/{shop.id}/lancement/paiements/retour"})
+    return link.url
+
+
+def refresh_connect(db, shop, client=None) -> PaymentAccount | None:
+    acc = connect_account(db, shop)
+    if acc is None:
+        return None
+    a = (client or _platform_client()).v1.accounts.retrieve(acc.connected_account_id)
+    apply_account_status(shop, acc, a)
+    return acc
+
+
+def apply_account_status(shop, acc: PaymentAccount, a):
+    get = (lambda k: a.get(k)) if isinstance(a, dict) else (lambda k: getattr(a, k, None))
+    charges, details = bool(get("charges_enabled")), bool(get("details_submitted"))
+    acc.status = "connected" if charges else ("pending_verification" if details else "onboarding")
+    acc.account_label = {"connected": "Compte bancaire connecté, paiements activés",
+                         "pending_verification": "Informations envoyées, vérification en cours chez Stripe",
+                         "onboarding": "Inscription Stripe à terminer"}[acc.status]
+
+
+def parse_platform_webhook(payload: bytes, sig: str) -> dict:
+    import stripe
+    if not settings.stripe_platform_webhook_secret:
+        raise PaymentError("Webhook de plateforme non configuré")
+    try:
+        stripe.Webhook.construct_event(payload, sig, settings.stripe_platform_webhook_secret)
+    except (ValueError, stripe.SignatureVerificationError) as exc:
+        raise PaymentError("Signature de webhook invalide") from exc
+    return json.loads(payload)
+
+
+def handle_platform_event(db, event: dict) -> str:
+    """Événement Connect : le compte connecté (event.account) désigne la boutique — jamais les métadonnées seules."""
+    acct = event.get("account")
+    acc = db.scalar(select(PaymentAccount).where(PaymentAccount.provider == "stripe_connect",
+                                                 PaymentAccount.connected_account_id == acct)) if acct else None
+    if acc is None:
+        return "compte inconnu"
+    from ..models import Shop
+    shop = db.get(Shop, acc.shop_id)
+    if event["type"] == "account.updated":
+        if record_event(db, shop.id, "stripe", event["id"], event["type"], {"type": event["type"], "id": event["id"]}) is None:
+            return "duplicate"
+        apply_account_status(shop, acc, event["data"]["object"])
+        return f"compte {acc.status}"
+    return handle_stripe_event(db, shop, event)

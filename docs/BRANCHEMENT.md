@@ -2,6 +2,19 @@
 
 Chaque étape indique ce que **vous** faites (compte, identité, DNS) et ce qui est **déjà prêt** dans le code. Ne collez jamais une clé dans une conversation : mettez-la dans `.env` sur le serveur, ou dans les variables d'environnement de l'environnement cloud.
 
+## 0. Stripe Connect : configuration de la plateforme (une seule fois, par vous)
+
+Dans le parcours simple, les commerçants ne manipulent aucune clé. Ils cliquent sur « Connecter mon compte bancaire » et terminent leur inscription chez Stripe (identité, IBAN). L'argent de leurs ventes arrive directement sur leur compte Stripe.
+
+1. Dans **votre** dashboard Stripe (mode test pour commencer), activez **Connect**. Le modèle utilisé est celui où chaque commerçant a son propre tableau de bord Stripe et où les comptes sont créés par la plateforme.
+2. Renseignez dans `.env` : `STRIPE_PLATFORM_SECRET_KEY=sk_test_…`.
+3. Déclarez un endpoint webhook **Connect** (« événements des comptes connectés ») vers `https://<domaine>/webhooks/stripe-connect`, avec les événements `account.updated`, `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `payment_intent.payment_failed`, `refund.created` et `refund.updated`. Copiez son secret dans `STRIPE_PLATFORM_WEBHOOK_SECRET`.
+   En local : `stripe listen --forward-connect-to localhost:8000/webhooks/stripe-connect --events account.updated,checkout.session.completed,refund.updated`.
+4. Renseignez `PLATFORM_LEGAL_HOST` : l'hébergeur des boutiques, c'est-à-dire votre société et votre fournisseur de serveurs. Cette mention est obligatoire dans les mentions légales.
+5. Passage aux paiements réels : remplacez la clé par `sk_live_…` et déclarez l'endpoint Connect en mode live. Chaque commerçant publie alors en un clic, à l'étape 4, une fois son compte activé par Stripe.
+
+Le mode « clés Stripe du commerçant » (section 1 ci-dessous) reste disponible en mode expert.
+
 ## 1. Stripe en mode test
 
 **Vous :**

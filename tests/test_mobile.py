@@ -176,3 +176,24 @@ def test_photo_shop_animated(server, app, merchant, db):
         anim = page.evaluate("getComputedStyle(document.querySelector('.marquee-track')).animationName")
         assert anim in ("none", ""), anim
         b.close()
+
+
+def test_simple_launch_screens(server, app, merchant, db):
+    from test_simple_launch import simple_create
+    sid, _ = simple_create(merchant)
+    cookies = [{"name": k, "value": v, "url": server} for k, v in merchant.c.cookies.items()]
+    with pw.sync_playwright() as p:
+        b = _browser(p)
+        for name, vp in (("mobile-9-creer", {"width": 375, "height": 812}), ("desktop-creer", {"width": 1280, "height": 900})):
+            ctx = b.new_context(viewport=vp)
+            ctx.add_cookies(cookies)
+            page = ctx.new_page()
+            page.goto(f"{server}/app/new")
+            assert _no_hscroll(page) and page.locator("#sphoto").count() == 1
+            page.screenshot(path=str(SHOTS / f"{name}.png"), full_page=True)
+            for step in (1, 2, 4):
+                page.goto(f"{server}/app/shops/{sid}/lancement?etape={step}")
+                assert _no_hscroll(page), (name, step)
+            page.goto(f"{server}/app/shops/{sid}/lancement?etape=1")
+            page.screenshot(path=str(SHOTS / f"{name.replace('creer', 'lancement')}.png"), full_page=True)
+        b.close()

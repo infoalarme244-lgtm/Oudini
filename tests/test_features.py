@@ -203,7 +203,7 @@ def test_readiness_lists_real_blockers(app, merchant, db):
     sid = merchant.create_shop(demo=True)
     r = readiness.check(db, shop_of(db, sid))
     keys = {i["key"] for i in r["blocking"]}
-    assert {"payment_live", "shipping", "taxes", "catalog", "no_demo", "legal_info", "legal_pages", "placeholders"} <= keys
+    assert {"payment_live", "shipping_confirmed", "taxes", "catalog", "no_demo", "legal_info", "legal_pages", "placeholders"} <= keys
     assert not r["can_publish"]
     from app.services import versions
     shop = shop_of(db, sid)

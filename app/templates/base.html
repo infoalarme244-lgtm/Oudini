@@ -7,16 +7,18 @@
 {% if ctx %}{% set b = '/app/shops/' ~ shop.id %}
 <div class="layout"><aside class="side"><details open><summary>Menu — {{ shop.name }}</summary><nav aria-label="Navigation boutique">
 <div class="grp">{{ shop.name }}</div>
-<a href="{{ b }}">Vue d'ensemble</a><a href="/s/{{ shop.slug }}/?preview={{ shop.preview_token }}" target="_blank" rel="noopener">Prévisualiser ↗</a>
-<a href="{{ b }}/brief">Demande & hypothèses</a><a href="{{ b }}/launch">Lancement</a>
-<div class="grp">Boutique</div><a href="{{ b }}/content">Contenu & édition</a><a href="{{ b }}/settings">Paramètres</a>
-<div class="grp">Catalogue</div><a href="{{ b }}/products">Produits & stocks</a><a href="{{ b }}/import">Import / export</a><a href="{{ b }}/suppliers">Fournisseurs & tailles</a>
-<div class="grp">Ventes</div><a href="{{ b }}/orders">Commandes</a><a href="{{ b }}/returns">Retours</a><a href="{{ b }}/customers">Clients</a><a href="{{ b }}/discounts">Réductions</a>
+<a href="{{ b }}/lancement"><strong>🚀 Lancer ma boutique</strong></a><a href="{{ b }}">Vue d'ensemble</a>
+<a href="/s/{{ shop.slug }}/?preview={{ shop.preview_token }}" target="_blank" rel="noopener">Voir ma boutique ↗</a>
+<a href="{{ b }}/orders">Commandes</a><a href="{{ b }}/products">Produits & stocks</a><a href="{{ b }}/dashboard">Tableau de bord</a>
+<a href="{{ b }}/content">Modifier la boutique</a><a href="{{ b }}/support">Demandes clients</a>
+<details class="expert"><summary class="grp" style="display:block;cursor:pointer">Mode expert ▾</summary>
+<a href="{{ b }}/brief">Demande & hypothèses</a><a href="{{ b }}/launch">Préparation détaillée</a><a href="{{ b }}/settings">Paramètres</a>
+<a href="{{ b }}/import">Import / export</a><a href="{{ b }}/suppliers">Fournisseurs & tailles</a>
+<a href="{{ b }}/returns">Retours</a><a href="{{ b }}/customers">Clients</a><a href="{{ b }}/discounts">Réductions</a>
 <a href="{{ b }}/shipping">Livraison</a><a href="{{ b }}/taxes">TVA</a><a href="{{ b }}/payments">Paiements</a>
-<div class="grp">Pilotage</div><a href="{{ b }}/dashboard">Tableau de bord</a><a href="{{ b }}/copilot">Copilote de rentabilité</a>
-<a href="{{ b }}/analysis">Analyse concurrentielle</a><a href="{{ b }}/watch">Veille</a><a href="{{ b }}/experiments">Tests A/B</a>
-<a href="{{ b }}/marketing">Marketing</a><a href="{{ b }}/support">Demandes clients</a>
-<div class="grp">Gouvernance</div><a href="{{ b }}/approvals">Validations</a><a href="{{ b }}/traces">Traçabilité</a>
+<a href="{{ b }}/copilot">Copilote de rentabilité</a><a href="{{ b }}/analysis">Analyse concurrentielle</a><a href="{{ b }}/watch">Veille</a>
+<a href="{{ b }}/experiments">Tests A/B</a><a href="{{ b }}/marketing">Marketing</a>
+<a href="{{ b }}/approvals">Validations</a><a href="{{ b }}/traces">Traçabilité</a></details>
 </nav></details></aside><main>
 {% if request.query_params.get('flash') %}<div class="flash" role="status">{{ request.query_params.get('flash') }}</div>{% endif %}
 {% block content %}{% endblock %}</main></div>

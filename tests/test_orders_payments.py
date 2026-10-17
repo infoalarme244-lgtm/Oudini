@@ -296,7 +296,7 @@ def test_stripe_refund_pending_human_approval(app, merchant, db, monkeypatch):
     import stripe
 
     class FakeSessions:
-        def retrieve(self, sid):
+        def retrieve(self, sid, options=None):
             return type("S", (), {"payment_intent": "pi_test_1"})()
 
     class FakeRefunds:
@@ -305,7 +305,7 @@ def test_stripe_refund_pending_human_approval(app, merchant, db, monkeypatch):
                                          "been created and is awaiting review. To check status: GET /v2/core/approval_requests/"
                                          "apreq_test_61VaYKUbmN8NovtAn16VaXmt.")
     fake = type("C", (), {"v1": type("V", (), {"checkout": type("K", (), {"sessions": FakeSessions()})(), "refunds": FakeRefunds()})()})()
-    monkeypatch.setattr(payments.StripeProvider, "__init__", lambda self, shop_, acc: setattr(self, "client", fake) or setattr(self, "shop", shop_))
+    monkeypatch.setattr(payments.StripeProvider, "__init__", lambda self, shop_, acc: setattr(self, "client", fake) or setattr(self, "shop", shop_) or setattr(self, "opts", {}))
     r = merchant.post(f"/app/shops/{shop.id}/orders/{o.id}/refund", {"amount": f"{o.total_cents/100:.2f}", "reason": "retour"})
     assert "attente d&#39;approbation" in r.text or "attente d'approbation" in r.text
     db.expire_all()

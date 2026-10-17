@@ -356,8 +356,9 @@ class PaymentAccount(TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("shop_id", "provider", "mode"),)
     id: Mapped[int] = mapped_column(primary_key=True)
     shop_id: Mapped[int] = mapped_column(ForeignKey("shops.id", ondelete="CASCADE"), index=True)
-    provider: Mapped[str] = mapped_column(String(20))  # stripe | simulator
+    provider: Mapped[str] = mapped_column(String(20))  # stripe_connect | stripe (clés, mode expert) | simulator
     mode: Mapped[str] = mapped_column(String(10))      # test | live
+    connected_account_id: Mapped[str | None] = mapped_column(String(255), nullable=True)  # acct_… (Stripe Connect)
     status: Mapped[str] = mapped_column(String(30), default="not_connected")
     secret_enc: Mapped[str] = mapped_column(Text, default="")
     webhook_secret_enc: Mapped[str] = mapped_column(Text, default="")

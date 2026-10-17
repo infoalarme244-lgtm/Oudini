@@ -36,6 +36,18 @@ async def stripe_webhook(shop_id: int, request: Request, db=Depends(get_db)):
     return {"received": True, "result": result}
 
 
+@router.post("/stripe-connect")
+async def stripe_connect_webhook(request: Request, db=Depends(get_db)):
+    """Endpoint unique « Connect » de la plateforme : la boutique est retrouvée par le compte connecté de l'événement."""
+    try:
+        event = payments.parse_platform_webhook(await request.body(), request.headers.get("stripe-signature", ""))
+    except payments.PaymentError:
+        raise HTTPException(400, "Signature invalide")
+    result = payments.handle_platform_event(db, event)
+    db.commit()
+    return {"received": True, "result": result}
+
+
 @router.post("/simulator/{shop_id}")
 async def simulator_webhook(shop_id: int, request: Request, db=Depends(get_db)):
     shop = db.get(Shop, shop_id)

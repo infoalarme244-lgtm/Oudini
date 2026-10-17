@@ -48,3 +48,14 @@ mark.todo{background:var(--warn-bg);color:var(--warn);padding:0 3px;border-radiu
 @media (max-width:860px){.layout{grid-template-columns:1fr}.side{border-right:0;border-bottom:1px solid var(--line);padding:8px}
 .side summary{display:block;cursor:pointer;font-weight:600;padding:6px 10px}.side nav{display:none}.side details[open] nav{display:block}
 .g2,.g3,.g4{grid-template-columns:1fr}main{padding:16px}.top{flex-wrap:wrap}}
+.wizard{list-style:none;padding:0;margin:16px 0 20px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.wizard a{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);text-decoration:none;color:var(--text);height:100%}
+.wizard .num{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:var(--bg);border:1px solid var(--line)}
+.wizard small{display:block;color:var(--muted);font-size:12px}
+.wizard li.current a{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.wizard li.done .num{background:var(--ok);color:#fff;border-color:var(--ok)}
+.simple-start{max-width:640px;margin:0 auto}.simple-start .drop{border:2px dashed var(--line);border-radius:14px;padding:24px;text-align:center;background:var(--surface)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chips label{display:inline-flex;gap:6px;align-items:center;margin:0;padding:8px 12px;border:1px solid var(--line);border-radius:99px;background:var(--surface);color:var(--text);cursor:pointer}
+@media (max-width:860px){.wizard{grid-template-columns:1fr 1fr}}
+.row .btn{white-space:normal;text-align:center}
+@media (max-width:860px){.row>*{flex-basis:100%}}

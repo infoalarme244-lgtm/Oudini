@@ -28,8 +28,9 @@ def index(request: Request, user=Depends(login_required), db=Depends(get_db)):
 
 
 @router.get("/new")
-def new_form(request: Request, user=Depends(login_required)):
-    return render(request, "merchant/new.html", user=user)
+def new_form(request: Request, expert: int = 0, user=Depends(login_required)):
+    from ..services import verticals
+    return render(request, "merchant/new.html", user=user, expert=bool(expert), verticals=verticals.PROFILES)
 
 
 def _unique_slug(db, base):
@@ -45,10 +46,19 @@ def _unique_slug(db, base):
 async def create(request: Request, prompt: str = Form(""), competitor_url: str = Form(""), name: str = Form(""),
                  demo: str = Form(""), catalog_file: UploadFile | None = File(None),
                  photo_file: UploadFile | None = File(None), photo_rights: str = Form(""),
+                 mode: str = Form("expert"), product_type: str = Form(""), countries: list[str] = Form([]),
                  user=Depends(login_required), db=Depends(get_db)):
     has_photo = bool(photo_file and photo_file.filename)
+    simple = mode == "simple"
+    if simple:  # parcours simple : la phrase est construite à partir des choix, rien à rédiger
+        from ..services import verticals
+        label = verticals.PROFILES[product_type]["label"].lower() if product_type in verticals.PROFILES else ""
+        names = {"BE": "la Belgique", "FR": "la France", "LU": "le Luxembourg", "NL": "les Pays-Bas"}
+        where = " et ".join(names[c] for c in countries if c in names) or "la France"
+        prompt = (f"Boutique de {label} pour {where}. " if label else f"Boutique pour {where}. ") + prompt
     if not prompt.strip() and not competitor_url.strip() and not (catalog_file and catalog_file.filename) and not has_photo:
-        return render(request, "merchant/new.html", user=user,
+        from ..services import verticals
+        return render(request, "merchant/new.html", user=user, expert=not simple, verticals=verticals.PROFILES,
                       error="Décrivez votre projet, ou donnez une photo, une URL concurrente ou un catalogue.", status_code=400)
     img = None
     if has_photo:
@@ -56,7 +66,9 @@ async def create(request: Request, prompt: str = Form(""), competitor_url: str =
         try:
             img = media.load_clean(await photo_file.read())
         except media.ImageRejected as exc:
-            return render(request, "merchant/new.html", user=user, error=f"Photo refusée : {exc}", status_code=400)
+            from ..services import verticals
+            return render(request, "merchant/new.html", user=user, expert=not simple, verticals=verticals.PROFILES,
+                          error=f"Photo refusée : {exc}", status_code=400)
     shop = Shop(slug=_unique_slug(db, name or "ma-boutique"), name=name or "Ma boutique")
     db.add(shop)
     db.flush()
@@ -90,8 +102,16 @@ async def create(request: Request, prompt: str = Form(""), competitor_url: str =
     if demo:
         catalog.seed_demo(db, shop, res["extracted"].get("categories") or [None])
     if product_draft:
+        if simple and not product_draft["category"] and product_type:
+            product_draft["category"] = product_type
         _create_photo_product(db, shop, product_draft)
     audit(db, shop.id, user.id, "shop.created", "shop", shop.id, after={"prompt": prompt[:500], "url": url, "photo": bool(img)})
+    if simple:
+        # aucune question bloquante : les choix par défaut sont appliqués et restent modifiables
+        b.questions = [{**q, "answer": q.get("answer") or ("fr" if q["key"] == "languages" else None)} for q in b.questions]
+        _generate(db, shop, b, user, 0, analyse=True)
+        db.commit()
+        return redirect(f"/app/shops/{shop.id}/lancement")
     db.commit()
     return redirect(f"/app/shops/{shop.id}/brief")
 
@@ -256,7 +276,14 @@ async def brief_questions(request: Request, ctx: ShopCtx = Depends(shop_ctx), db
 
 @router.post("/shops/{shop_id}/generate")
 def generate(request: Request, positioning: int = Form(0), analyse: str = Form(""), ctx: ShopCtx = Depends(shop_ctx), db=Depends(get_db)):
-    shop, b = ctx.shop, _brief(db, ctx.shop)
+    _generate(db, ctx.shop, _brief(db, ctx.shop), ctx.user, positioning, bool(analyse))
+    db.commit()
+    return redirect(f"/app/shops/{ctx.shop.id}", "Boutique générée en prévisualisation privée")
+
+
+def _generate(db, shop, b, user, positioning: int = 0, analyse: bool = True):
+    """Génère la boutique (contenu, TVA, zones de livraison, simulateur) puis pré-remplit tout ce qui peut l'être."""
+    from ..services import autopilot
     b.chosen_positioning = max(0, min(positioning, len(b.positioning_options) - 1))
     snap = generator.initial_snapshot(shop, b)
     photo_url = ((b.extracted or {}).get("photo") or {}).get("url")
@@ -266,18 +293,19 @@ def generate(request: Request, positioning: int = Form(0), analyse: str = Form("
                    if any(i.get("url") == photo_url for i in p.images or [])), None)
         if hp:
             snap["home"]["hero_product"] = hp.handle
-    versions.create(db, shop, snap, "Génération initiale", ctx.user.id)
+    versions.create(db, shop, snap, "Génération initiale", user.id)
     for t in generator.default_tax_settings(shop.countries):
         if not db.scalar(select(TaxSetting).where(TaxSetting.shop_id == shop.id, TaxSetting.country == t["country"])):
             db.add(TaxSetting(shop_id=shop.id, **t))
     if not db.scalar(select(ShippingZone).where(ShippingZone.shop_id == shop.id)):
-        for c in shop.countries:  # zones prêtes, tarifs et délais à saisir par le commerçant
-            db.add(ShippingZone(shop_id=shop.id, name=generator.COUNTRY_NAMES.get(c, c) if hasattr(generator, "COUNTRY_NAMES")
-                                else c, countries=[c], rates=[]))
+        for c in shop.countries:
+            db.add(ShippingZone(shop_id=shop.id, name=generator.COUNTRY_NAMES.get(c, c), countries=[c], rates=[]))
     if not db.scalar(select(PaymentAccount).where(PaymentAccount.shop_id == shop.id, PaymentAccount.provider == "simulator")):
         db.add(PaymentAccount(shop_id=shop.id, provider="simulator", mode="test", status="connected",
                               account_label="Simulateur intégré (aucun argent réel)"))
+    db.flush()
     b.status = "generated"
+    autopilot.autofill(db, shop, user)
     if analyse:
         comps = []
         if b.competitor_url:
@@ -290,9 +318,7 @@ def generate(request: Request, positioning: int = Form(0), analyse: str = Form("
             comps.append(c)
         a = an.start_analysis(db, shop, b, comps)
         jobs.enqueue(db, shop.id, "competitor_analysis", {"analysis_id": a.id})
-    audit(db, shop.id, ctx.user.id, "shop.generated", "shop", shop.id, after={"positioning": b.chosen_positioning})
-    db.commit()
-    return redirect(f"/app/shops/{shop.id}", "Boutique générée en prévisualisation privée")
+    audit(db, shop.id, user.id, "shop.generated", "shop", shop.id, after={"positioning": b.chosen_positioning})
 
 
 @router.get("/shops/{shop_id}")
@@ -314,7 +340,9 @@ def overview(request: Request, ctx: ShopCtx = Depends(shop_ctx), db=Depends(get_
         ("Relire et valider les pages légales", "validation", next(i["ok"] for i in r["items"] if i["key"] == "legal_pages")),
         ("Publier (validation explicite)", "validation", shop.status == "published"),
     ]
-    return render(request, "merchant/overview.html", ctx, readiness=r, steps=steps, step_kind=STEP_KIND, jobs=jobs_)
+    from ..services import autopilot
+    return render(request, "merchant/overview.html", ctx, readiness=r, steps=steps, step_kind=STEP_KIND, jobs=jobs_,
+                  simple_steps=autopilot.steps(db, shop))
 
 
 # ---------------------------------------------------------------- contenu & édition conversationnelle
