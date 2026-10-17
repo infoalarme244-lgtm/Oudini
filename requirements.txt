@@ -14,3 +14,4 @@ anthropic==1.15.0
 pytest==9.1.1
 playwright==1.64.0
 psycopg[binary]==3.3.6
+pillow==13.0.0

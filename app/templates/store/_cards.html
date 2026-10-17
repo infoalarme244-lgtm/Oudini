@@ -1,5 +1,5 @@
 <div class="cards">{% for p in products %}{% set imgs = p.images|selectattr('license')|list %}{% set mp = min_price(p) %}
-<a class="pcard" href="{{ st.base }}/product/{{ p.handle }}"><div class="img">{% if imgs %}<img src="{{ imgs[0].url }}" alt="{{ imgs[0].alt }}" loading="lazy" width="400" height="400">{% else %}<span>{{ p.brand or 'Photo à venir' }}</span>{% endif %}</div>
+<a class="pcard reveal" style="--i:{{ loop.index0 % 4 }}" href="{{ st.base }}/product/{{ p.handle }}"><div class="img">{% if imgs %}<img src="{{ imgs[0].url }}" alt="{{ imgs[0].alt }}" loading="lazy" width="400" height="400">{% else %}<span>{{ p.brand or 'Photo à venir' }}</span>{% endif %}</div>
 <div class="body">{% if p.is_demo %}<span class="tag demo">DÉMO</span> {% endif %}<div class="t">{{ p.title }}</div><div class="small" style="color:var(--muted)">{{ p.brand }}{{ ' · ' ~ p.usage if p.usage }}</div>
 <div class="p">{{ ('dès ' ~ (mp|money)) if mp is not none else 'Prix à venir' }}</div>{% if p.variants|sum(attribute='available')==0 %}<span class="tag">{{ t('Rupture de stock') }}</span>{% endif %}</div></a>
 {% endfor %}</div>

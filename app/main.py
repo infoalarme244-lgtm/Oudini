@@ -25,6 +25,9 @@ def create_app() -> FastAPI:
             log.warning("SENTRY_DSN défini mais sentry-sdk non installé")
     app = FastAPI(title="ShopForge", docs_url=None, redoc_url=None)
     app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
+    from .services.media import MEDIA_ROOT
+    MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+    app.mount("/media", StaticFiles(directory=str(MEDIA_ROOT)), name="media")
 
     @app.middleware("http")
     async def request_context(request: Request, call_next):

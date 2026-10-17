@@ -57,8 +57,9 @@ def wrap_untrusted(text: str, limit: int = 20000) -> str:
     return f"<untrusted_data>\n{text}\n</untrusted_data>"
 
 
-def complete_json(db, shop, feature: str, instruction: str, data: str, schema: dict, sources=None):
-    """Appel structuré. Renvoie dict ou None (IA non configurée / budget / limite atteinte)."""
+def complete_json(db, shop, feature: str, instruction: str, data: str, schema: dict, sources=None, images=None):
+    """Appel structuré. Renvoie dict ou None (IA non configurée / budget / limite atteinte).
+    `images` : liste de (media_type, base64) — traitées comme des données, au même titre que `data`."""
     if not settings.ai_enabled:
         return None
     if shop.ai_spent_usd >= shop.ai_budget_usd:
@@ -75,7 +76,9 @@ def complete_json(db, shop, feature: str, instruction: str, data: str, schema: d
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
             output_config={"effort": "medium", "format": {"type": "json_schema", "schema": schema}},
-            messages=[{"role": "user", "content": f"{instruction}\n\n{wrap_untrusted(data)}"}],
+            messages=[{"role": "user", "content": [
+                *[{"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}} for mt, b64 in (images or [])],
+                {"type": "text", "text": f"{instruction}\n\n{wrap_untrusted(data)}"}]}],
         )
     except Exception as exc:  # erreurs réseau/API : repli déterministe, journalisé
         log.exception("ai call failed: %s", exc)

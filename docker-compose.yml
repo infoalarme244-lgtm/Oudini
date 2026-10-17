@@ -21,6 +21,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://shopforge:${POSTGRES_PASSWORD}@db:5432/shopforge
       SHOPFORGE_ENV: prod
+    volumes: [media:/app/media]   # photos téléversées (à sauvegarder aussi)
     depends_on:
       db: {condition: service_healthy}
 
@@ -58,5 +59,6 @@ services:
       db: {condition: service_healthy}
 
 volumes:
+  media:
   pgdata:
   caddy_data:

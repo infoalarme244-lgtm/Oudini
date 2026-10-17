@@ -199,11 +199,17 @@ def initial_snapshot(shop, brief) -> dict:
     pages = {**service_pages(shop, brands, fit), **legal_pages(shop, [vp["key"] for vp in profs])}
     nav = [{"label": c["title"], "href": f"/c/{c['handle']}"} for c in collections[:5]]
     nav += ([{"label": fit["label"], "href": "/p/faq"}] if fit else []) + [{"label": "Contact", "href": "/p/contact"}]
+    theme = {k: identity[k] for k in ("style_name", "palette", "font_heading", "font_body", "radius")}
+    theme["animations"] = True
+    photo = (brief.extracted or {}).get("photo") or {}
+    if photo.get("palette"):  # palette dérivée de la photo du produit (contrastes vérifiés)
+        theme.update({"palette": dict(photo["palette"]), "style_name": "photo"})
+    hero_image = photo.get("url") if photo.get("rights") else ""
     return {
-        "theme": {k: identity[k] for k in ("style_name", "palette", "font_heading", "font_body", "radius")},
+        "theme": theme,
         "brand": {"name": shop.name, "tagline": chosen["promise"].split(":")[0].split(".")[0], "tone": "direct, chaleureux, précis"},
         "positioning": chosen,
-        "home": {"hero_title": chosen["name"], "hero_subtitle": chosen["promise"],
+        "home": {"hero_title": chosen["name"], "hero_subtitle": chosen["promise"], "hero_image": hero_image,
                  "value_props": chosen["proofs"],
                  "featured_collections": [c["handle"] for c in collections[:3]],
                  "reseller_notice": chosen.get("reseller_note", "")},

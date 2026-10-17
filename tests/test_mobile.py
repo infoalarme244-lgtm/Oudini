@@ -146,3 +146,33 @@ def test_mobile_watch_shop(server, app, merchant, db):
         assert _no_hscroll(page) and "certitude" in page.inner_text("#sres")
         page.screenshot(path=str(SHOTS / "mobile-7-montre.png"), full_page=True)
         b.close()
+
+
+def _reveal_all(page):
+    page.evaluate("""async () => { for (let y = 0; y <= document.body.scrollHeight; y += 300) { scrollTo(0, y); await new Promise(r => setTimeout(r, 60)); } scrollTo(0, 0); }""")
+    page.wait_for_timeout(1200)
+
+
+def test_photo_shop_animated(server, app, merchant, db):
+    from conftest import shop_of
+    from test_photo import create_from_photo, photo_bytes
+    sid, _ = create_from_photo(merchant, prompt="Boutique de montres pour la Belgique et la France", photo=photo_bytes((20, 90, 170), (235, 238, 242)))
+    merchant.post(f"/app/shops/{sid}/generate", {"positioning": "0"})
+    shop = shop_of(db, sid)
+    with pw.sync_playwright() as p:
+        b = _browser(p)
+        for name, vp, mobile in (("mobile-8-photo", {"width": 375, "height": 812}, True), ("desktop-photo", {"width": 1280, "height": 900}, False)):
+            page = b.new_context(viewport=vp, device_scale_factor=2 if mobile else 1, is_mobile=mobile).new_page()
+            page.goto(f"{server}/s/{shop.slug}/?preview={shop.preview_token}")
+            _reveal_all(page)
+            assert _no_hscroll(page), name
+            assert page.locator(".reveal:not(.in)").count() == 0, "tous les éléments doivent finir visibles"
+            assert page.locator(".hero-visual img").is_visible()
+            page.screenshot(path=str(SHOTS / f"{name}.png"), full_page=True)
+        # visiteur qui refuse les animations : tout est visible immédiatement
+        page = b.new_context(viewport={"width": 375, "height": 812}, reduced_motion="reduce").new_page()
+        page.goto(f"{server}/s/{shop.slug}/?preview={shop.preview_token}")
+        assert page.locator(".reveal:not(.in)").count() == 0
+        anim = page.evaluate("getComputedStyle(document.querySelector('.marquee-track')).animationName")
+        assert anim in ("none", ""), anim
+        b.close()

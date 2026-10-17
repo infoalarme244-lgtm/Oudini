@@ -2,7 +2,8 @@
 <title>{% block title %}{{ snap.brand.name }}{% endblock %}</title><meta name="description" content="{{ snap.home.hero_subtitle[:155] }}">
 {% if st.preview or shop.status!='published' %}<meta name="robots" content="noindex,nofollow">{% endif %}
 <style>:root{--bg:{{ theme.palette.bg }};--surface:{{ theme.palette.surface }};--text:{{ theme.palette.text }};--muted:{{ theme.palette.muted }};--accent:{{ theme.palette.accent }};--accent-text:{{ theme.palette.accent_text }};--line:{{ theme.palette.line }};--radius:{{ theme.radius }};--font-heading:"{{ theme.font_heading }}";--font-body:"{{ theme.font_body }}"}</style>
-<link rel="stylesheet" href="/static/store.css"></head><body>
+<link rel="stylesheet" href="/static/store.css">
+<script>document.documentElement.classList.add('js')</script></head><body{{ ' data-anim' if theme.get('animations', True) }}>
 <a class="sr" href="#contenu">Aller au contenu</a>
 {% if st.preview %}<div class="banner">Prévisualisation privée — non visible du public{% if shop.status!='published' %} · boutique non publiée{% endif %}</div>{% endif %}
 {% if shop.payment_mode=='test' %}<div class="banner test">Mode test : aucun paiement réel n'est effectué</div>{% endif %}
@@ -25,4 +26,8 @@ const r=await fetch('{{ st.base }}/api/assistant',{method:'POST',body:new FormDa
 const p=document.createElement('p');p.style.whiteSpace='pre-line';p.textContent=d.answer;log.append(p);
 (d.products||[]).forEach(x=>{const a=document.createElement('a');a.href=d.base+'/product/'+x.handle;a.textContent='→ '+x.title+' — dès '+x.price.toFixed(2)+' € (tailles '+x.sizes.join(', ')+')'+(x.is_demo?' [DÉMO]':'');a.style.display='block';log.append(a)});
 f.question.value='';log.scrollTop=log.scrollHeight});
+(function(){var b=document.body;if(!b.hasAttribute('data-anim')||!('IntersectionObserver' in window)||matchMedia('(prefers-reduced-motion: reduce)').matches){document.querySelectorAll('.reveal').forEach(function(e){e.classList.add('in')});return}
+var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});
+document.querySelectorAll('.reveal').forEach(function(e){io.observe(e)});
+var h=document.querySelector('header.site');addEventListener('scroll',function(){h&&h.classList.toggle('scrolled',scrollY>8)},{passive:true})})();
 </script></body></html>

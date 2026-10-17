@@ -44,15 +44,32 @@ def _unique_slug(db, base):
 @router.post("/new")
 async def create(request: Request, prompt: str = Form(""), competitor_url: str = Form(""), name: str = Form(""),
                  demo: str = Form(""), catalog_file: UploadFile | None = File(None),
+                 photo_file: UploadFile | None = File(None), photo_rights: str = Form(""),
                  user=Depends(login_required), db=Depends(get_db)):
-    if not prompt.strip() and not competitor_url.strip() and not (catalog_file and catalog_file.filename):
-        return render(request, "merchant/new.html", user=user, error="Décrivez votre projet, ou donnez une URL concurrente, ou un catalogue.",
-                      status_code=400)
+    has_photo = bool(photo_file and photo_file.filename)
+    if not prompt.strip() and not competitor_url.strip() and not (catalog_file and catalog_file.filename) and not has_photo:
+        return render(request, "merchant/new.html", user=user,
+                      error="Décrivez votre projet, ou donnez une photo, une URL concurrente ou un catalogue.", status_code=400)
+    img = None
+    if has_photo:
+        from ..services import media
+        try:
+            img = media.load_clean(await photo_file.read())
+        except media.ImageRejected as exc:
+            return render(request, "merchant/new.html", user=user, error=f"Photo refusée : {exc}", status_code=400)
     shop = Shop(slug=_unique_slug(db, name or "ma-boutique"), name=name or "Ma boutique")
     db.add(shop)
     db.flush()
     db.add(Membership(user_id=user.id, shop_id=shop.id, role="owner"))
     res = briefsvc.understand(db, shop, prompt or "")
+    product_draft = None
+    if img is not None:
+        from ..services import media, photo
+        photo_url = media.save(shop.id, img)
+        result = photo.analyse(db, shop, img, prompt)
+        pa, pq, photo_info = photo.to_brief(result, bool(photo_rights), photo_url)
+        res = _merge_photo(res, pa, pq, photo_info)
+        product_draft = photo.draft_product(result, photo_url, bool(photo_rights), _RIGHTS.get(photo_rights, ""))
     url = competitor_url.strip() or (res["extracted"]["urls"][0] if res["extracted"]["urls"] else None)
     b = Brief(shop_id=shop.id, prompt=prompt, competitor_url=url, extracted=res["extracted"],
               assumptions=res["assumptions"], questions=res["questions"])
@@ -72,9 +89,55 @@ async def create(request: Request, prompt: str = Form(""), competitor_url: str =
                                                       "content_b64": base64.b64encode(content).decode(), "user_id": user.id})
     if demo:
         catalog.seed_demo(db, shop, res["extracted"].get("categories") or [None])
-    audit(db, shop.id, user.id, "shop.created", "shop", shop.id, after={"prompt": prompt[:500], "url": url})
+    if product_draft:
+        _create_photo_product(db, shop, product_draft)
+    audit(db, shop.id, user.id, "shop.created", "shop", shop.id, after={"prompt": prompt[:500], "url": url, "photo": bool(img)})
     db.commit()
     return redirect(f"/app/shops/{shop.id}/brief")
+
+
+_RIGHTS = {"own": "photo personnelle du commerçant", "supplier": "fournie par le fournisseur avec autorisation"}
+TEXT_ORIGINS = ("demande", "déduit des pays")
+
+
+def _merge_photo(res, photo_assumptions, photo_questions, photo_info):
+    """Le texte du commerçant prime ; la photo complète ce qu'il n'a pas précisé (valeurs par défaut)."""
+    A = list(res["assumptions"])
+    for pa in photo_assumptions:
+        cur = next((a for a in A if a["key"] == pa["key"]), None)
+        if cur is None:
+            A.append(pa)
+        elif cur["origin"] not in TEXT_ORIGINS:
+            A[A.index(cur)] = pa
+    keys = {a["key"] for a in A}
+    Q = [q for q in res["questions"] if not (q["key"] == "category" and "category" in keys)]
+    for pq in photo_questions:
+        if pq["key"] == "supply" and any(q["key"] == "supply" for q in Q):
+            continue
+        if pq["key"] == "category" and "category" in keys:
+            continue
+        Q.append(pq)
+    ex = dict(res["extracted"])
+    ex["photo"] = photo_info
+    cat = next((a["value"] for a in A if a["key"] == "category"), None)
+    if cat and not ex.get("category"):
+        ex["category"], ex["categories"] = cat, [cat]
+    brands = next((a["value"] for a in A if a["key"] == "brands"), None)
+    if brands and not ex.get("brands"):
+        ex["brands"] = brands
+    return {"extracted": ex, "assumptions": A, "questions": Q}
+
+
+def _create_photo_product(db, shop, d):
+    """Produit en BROUILLON : prix, stock, marque et provenance restent à renseigner par le commerçant."""
+    from ..models import Product, Variant
+    p = Product(shop_id=shop.id, handle=catalog.slugify(d["title"]) or "mon-produit", title=d["title"], description=d["description"],
+                category=d["category"], usage=catalog.slugify(d["usage"]) if d["usage"] else "", gender=d["gender"],
+                attributes=d["attributes"], images=[d["image"]], status="draft")
+    db.add(p)
+    db.add(Variant(shop_id=shop.id, product=p, sku=f"P{shop.id}-1", color=d["color"][:60], size="Unique", price_cents=None, stock=0))
+    db.flush()
+    return p
 
 
 def _sync_shop(shop, b):
@@ -151,6 +214,19 @@ async def brief_questions(request: Request, ctx: ShopCtx = Depends(shop_ctx), db
                     if a["key"] == "languages":
                         langs = ["fr", "nl"] if ans == "fr+nl" else ["fr"]
                         a["value"], a["origin"] = langs + [l for l in a["value"] if l not in langs], "réponse du commerçant"
+            if q["key"] == "photo_rights":
+                from ..models import Product
+                label = {"Oui, c'est ma photo": _RIGHTS["own"], "Oui, autorisation du fournisseur": _RIGHTS["supplier"]}.get(ans, "")
+                photo_info = dict((b.extracted or {}).get("photo") or {})
+                if photo_info:
+                    photo_info["rights"] = bool(label)
+                    b.extracted = {**b.extracted, "photo": photo_info}
+                    for p in db.scalars(select(Product).where(Product.shop_id == ctx.shop.id)):
+                        p.images = [{**i, "license": label} if i.get("url") == photo_info.get("url") else i for i in p.images or []]
+                    if ctx.shop.current_version_id:  # boutique déjà générée : la photo de couverture suit le droit déclaré
+                        snap = versions.snapshot(db, ctx.shop)
+                        snap.setdefault("home", {})["hero_image"] = photo_info["url"] if label else ""
+                        versions.create(db, ctx.shop, snap, "Photo de couverture : droit d'utilisation " + ("déclaré" if label else "non déclaré"), ctx.user.id)
             if q["key"] == "category":
                 from ..services import verticals
                 key = next((k for k, vp in verticals.PROFILES.items() if vp["label"] == ans), None) or catalog.normalise_category(ans)
@@ -160,6 +236,9 @@ async def brief_questions(request: Request, ctx: ShopCtx = Depends(shop_ctx), db
             if q["key"] == "countries":
                 A.append({"key": "countries", "label": "Pays ciblés", "value": [x.strip().upper() for x in ans.split(",")],
                           "origin": "réponse du commerçant", "editable": True})
+            if q["key"] == "supply" and ans == "Ce n'est pas cette marque":
+                A = [a for a in A if a["key"] != "brands"]
+                b.extracted = {**(b.extracted or {}), "brands": []}
             if q["key"] == "supply":
                 legal = dict(ctx.shop.legal or {})
                 if ans.startswith("Contrat"):
@@ -180,6 +259,13 @@ def generate(request: Request, positioning: int = Form(0), analyse: str = Form("
     shop, b = ctx.shop, _brief(db, ctx.shop)
     b.chosen_positioning = max(0, min(positioning, len(b.positioning_options) - 1))
     snap = generator.initial_snapshot(shop, b)
+    photo_url = ((b.extracted or {}).get("photo") or {}).get("url")
+    if photo_url:  # le produit de la photo devient la vedette de l'accueil
+        from ..models import Product
+        hp = next((p for p in db.scalars(select(Product).where(Product.shop_id == shop.id))
+                   if any(i.get("url") == photo_url for i in p.images or [])), None)
+        if hp:
+            snap["home"]["hero_product"] = hp.handle
     versions.create(db, shop, snap, "Génération initiale", ctx.user.id)
     for t in generator.default_tax_settings(shop.countries):
         if not db.scalar(select(TaxSetting).where(TaxSetting.shop_id == shop.id, TaxSetting.country == t["country"])):

@@ -1,8 +1,16 @@
 {% extends "base.html" %}{% block bare %}<div style="padding:24px 16px;max-width:760px"><h1>Nouvelle boutique</h1>
-<p class="muted">Une seule des trois entrées suffit. Vous pourrez tout modifier ensuite ; rien n'est publié sans votre validation.</p>
+<p class="muted">Une seule entrée suffit : une photo, une description, une URL ou un catalogue. Vous pourrez tout modifier ensuite ; rien n'est publié sans votre validation.</p>
 {% if error %}<div class="alert bad">{{ error }}</div>{% endif %}
 <form class="card" method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-<label for="prompt">1. Décrivez votre projet</label>
+<fieldset style="border:1px dashed var(--line);border-radius:var(--r);padding:12px 14px;margin:0 0 12px">
+<legend style="font-weight:700;padding:0 6px">Le plus rapide : une photo de votre produit</legend>
+<label for="photo">Photo (JPEG, PNG ou WebP, 8 Mo max.) — la boutique est construite autour : type de produit, couleurs, mise en page</label>
+<input id="photo" name="photo_file" type="file" accept="image/jpeg,image/png,image/webp" capture="environment">
+<label for="rights">Droit d'utiliser cette photo sur la boutique</label>
+<select id="rights" name="photo_rights"><option value="">Je ne sais pas / non — utilisée seulement pour construire la boutique</option>
+<option value="own">Oui, c'est ma photo</option><option value="supplier">Oui, autorisation écrite du fournisseur</option></select>
+<p class="small muted">Les métadonnées (GPS, appareil) sont supprimées. Ce que la photo suggère est présenté comme une hypothèse à vérifier ; une marque visible n'est jamais une preuve d'authenticité.</p></fieldset>
+<label for="prompt">1. Décrivez votre projet (facultatif avec une photo)</label>
 <textarea id="prompt" name="prompt" placeholder="Ex. : Crée une boutique de baskets Nike pour la Belgique et la France, avec un positionnement premium accessible. Analyse 10 concurrents pertinents."></textarea>
 <label for="url">2. URL d'un site concurrent (facultatif) — analysée pour ses principes, jamais copiée</label>
 <input id="url" name="competitor_url" type="url" placeholder="https://…">

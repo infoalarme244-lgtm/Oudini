@@ -30,6 +30,11 @@ def interpret(db, shop, message: str) -> dict:
     snap = versions.snapshot(db, shop)
     new = copy.deepcopy(snap)
     notes = []
+    if re.search(r"\banimation", low):
+        on = not re.search(r"\b(d[ée]sactiv|enl[eè]v|supprim|retir|sans|stop|coup)", low)
+        new["theme"]["animations"] = on
+        return {"kind": "style", "snapshot": new, "summary": "Animations " + ("activées" if on else "désactivées"),
+                "notes": ["Les visiteurs qui ont demandé à réduire les animations dans leur système ne les verront jamais."]}
     if re.search(r"\b(style|couleur|palette|thème|theme|look)\b", low):
         target = next((s for s in PALETTES if s in slugify(low).replace("-", " ") or s in low), None)
         if not target:

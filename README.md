@@ -37,6 +37,17 @@ python -m pytest tests -q                                # tests
 
 Variables facultatives : `DATABASE_URL` (PostgreSQL en production), `ANTHROPIC_API_KEY` (synthèses et traductions IA, budget plafonné par boutique), `SENTRY_DSN`, `SHOPFORGE_ENV=prod` (rend la clé secrète obligatoire).
 
+## Démarrer par une photo
+
+Sur `/app/new`, une seule photo du produit suffit. La boutique est alors construite autour d'elle :
+- **palette tirée des couleurs de la photo**, avec des contrastes lisibles vérifiés (texte ≥ 7:1, boutons ≥ 4,5:1) ;
+- **page d'accueil avec la photo en grand visuel et des animations** : apparitions au défilement, bandeau défilant, halo, effets au survol. Les animations sont automatiquement désactivées pour les visiteurs qui ont demandé à les réduire, et le commerçant peut les couper (« Désactive les animations ») ;
+- **produit créé en brouillon** avec la photo : le prix, le stock, la marque et la provenance restent à renseigner par le commerçant.
+
+Avec une clé Claude, la photo est analysée : type de produit, catégorie, caractéristiques visibles, titre et description à relire. Une marque visible est présentée « à confirmer » ; elle ne prouve ni l'authenticité ni le droit de revendre. Sans clé, une seule question est posée : le type de produit.
+
+La photo est vérifiée (JPEG, PNG ou WebP, 8 Mo maximum) et ré-encodée sans métadonnées (GPS, appareil). Elle n'est affichée publiquement que si le commerçant déclare en avoir le droit.
+
 ## Parcours
 
 1. `/signup` → `/app/new` : prompt, URL concurrente ou CSV/XLSX (une seule entrée suffit).
@@ -49,7 +60,7 @@ Chaque étape est marquée *Automatique*, *Connexion externe* ou *Validation du 
 
 ## État à la livraison
 
-### Fonctionne et est testé (99 tests automatisés, sur SQLite et PostgreSQL 16, tous verts)
+### Fonctionne et est testé (108 tests automatisés, sur SQLite et PostgreSQL 16, tous verts)
 
 | Domaine | Vérifié par |
 |---|---|
@@ -69,6 +80,7 @@ Chaque étape est marquée *Automatique*, *Connexion externe* ou *Validation du 
 | Copilote de marge (calcul vérifié au centime), promotion déficitaire signalée, tableau de bord CA / marge brute / contributive / résultat net « non disponible » | `test_unit_economics_and_missing_data`, `test_dashboard_separates_metrics` |
 | Import CSV/XLSX avec rapport ligne par ligne, ré-import idempotent, export | `test_csv_import_validation_and_export`, `test_xlsx_import` |
 | Multi-catégories : détection (montres, bijoux, accessoires, beauté…), boutique mixte, filtres par caractéristique, aide au choix poignet/doigt/taille, INCI obligatoire, import `attr_*`, recommandations par verticale, boutique générique | `test_verticals.py`, `test_mobile_watch_shop` |
+| Démarrage par photo : palette et contrastes, nettoyage des métadonnées, droits d'utilisation, analyse par Claude (simulée), animations et réduction des animations | `test_photo.py`, `test_photo_shop_animated` |
 | Édition par conversation (style, collection, traduction NL, pack rentable), prévisualisation, application, retour arrière | `test_chat_edit_preview_apply_rollback` |
 | Assistant d'achat limité aux données réelles, transfert au commerçant en cas de doute ; aide pointure avec incertitude ; A/B sans gagnant sur données insuffisantes ; veille avec suggestions qui protègent la marge | `test_features.py` |
 

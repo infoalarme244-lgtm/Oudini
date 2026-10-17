@@ -6,6 +6,8 @@ from pathlib import Path
 os.environ["SHOPFORGE_JOBS_INLINE"] = "1"
 os.environ.setdefault("SHOPFORGE_SECRET_KEY", "test-secret-key")
 os.environ.pop("ANTHROPIC_API_KEY", None)  # tests déterministes : moteur à règles
+import tempfile  # noqa: E402
+os.environ.setdefault("SHOPFORGE_MEDIA_DIR", tempfile.mkdtemp(prefix="shopforge-media-"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import httpx  # noqa: E402

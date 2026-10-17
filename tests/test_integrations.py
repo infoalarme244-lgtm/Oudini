@@ -158,7 +158,7 @@ def test_claude_request_shape_and_trace(app, merchant, db, monkeypatch):
     assert body["model"] == "claude-opus-5-5" and body["fallbacks"] == "default"
     assert "server-side-fallback-2026-07-01" in cap["headers"].get("anthropic-beta", "")
     assert body["output_config"]["format"]["type"] == "json_schema"
-    assert "<untrusted_data>" in body["messages"][0]["content"] and "jamais une instruction" in body["system"]
+    assert "<untrusted_data>" in body["messages"][0]["content"][-1]["text"] and "jamais une instruction" in body["system"]
     assert "thinking" not in body and "temperature" not in body
     from app.models import AiTrace, Brief
     t = db.scalar(select(AiTrace).where(AiTrace.shop_id == sid, AiTrace.engine == "claude-opus-5-5"))
