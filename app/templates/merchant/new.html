@@ -1,10 +1,15 @@
 {% extends "base.html" %}{% block bare %}{% if not expert %}
 <div class="simple-start" style="padding:24px 16px"><h1>Créez votre boutique</h1>
-<p class="muted">Une photo de votre produit suffit. Nous préparons tout le reste : vous n'aurez qu'à vérifier et valider.</p>
+<p class="muted">Une photo ou le lien d'un produit suffit. Nous préparons tout le reste : vous n'aurez qu'à vérifier et valider.</p>
 {% if error %}<div class="alert bad">{{ error }}</div>{% endif %}
 <form class="card" method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="mode" value="simple">
 <div class="drop"><label for="sphoto" style="font-size:1.05rem;color:var(--text)"><strong>📷 La photo de votre produit</strong></label>
-<input id="sphoto" name="photo_file" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" required></div>
+<input id="sphoto" name="photo_file" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></div>
+<p style="text-align:center;margin:10px 0" class="small muted">— ou —</p>
+<label for="purl"><strong>🔗 Le lien d'un produit</strong> (page d'une boutique ou d'une marque)</label>
+<input id="purl" name="product_url" type="url" placeholder="https://…/products/…">
+<p class="small muted">Nous lisons les informations du produit puis rédigeons des textes originaux. Les photos du site ne sont pas reprises (droits d'auteur) : vous ajouterez les vôtres.</p>
+<label for="lang">Langue de la boutique</label><select id="lang" name="language"><option value="fr">Français</option><option value="nl">Néerlandais</option></select>
 <label for="ptype">Que vendez-vous ?</label><select id="ptype" name="product_type"><option value="">Laisser l'IA deviner d'après la photo</option>
 {% for k,v in verticals.items() %}<option value="{{ k }}">{{ v.label }}</option>{% endfor %}</select>
 <label>Où voulez-vous vendre ?</label><div class="chips">{% for c,l in [('BE','Belgique'),('FR','France'),('LU','Luxembourg'),('NL','Pays-Bas')] %}

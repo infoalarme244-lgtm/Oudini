@@ -1,6 +1,7 @@
 """Espace commerçant : création guidée, hypothèses, génération, contenu versionné, publication, gouvernance."""
 import base64
 import copy
+import re
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -47,16 +48,27 @@ async def create(request: Request, prompt: str = Form(""), competitor_url: str =
                  demo: str = Form(""), catalog_file: UploadFile | None = File(None),
                  photo_file: UploadFile | None = File(None), photo_rights: str = Form(""),
                  mode: str = Form("expert"), product_type: str = Form(""), countries: list[str] = Form([]),
+                 product_url: str = Form(""), language: str = Form("fr"),
                  user=Depends(login_required), db=Depends(get_db)):
     has_photo = bool(photo_file and photo_file.filename)
     simple = mode == "simple"
+    facts = None
+    if product_url.strip():  # lien d'un produit : lu comme source d'informations, jamais recopié
+        from ..services import product_import, verticals
+        try:
+            facts = product_import.fetch_product(product_url.strip())
+        except (product_import.ImportFailed, ValueError) as exc:
+            return render(request, "merchant/new.html", user=user, expert=not simple, verticals=verticals.PROFILES,
+                          error=f"Lien produit inutilisable : {exc}", status_code=400)
+        if not product_type and facts.get("vertical"):
+            product_type = facts["vertical"]
     if simple:  # parcours simple : la phrase est construite à partir des choix, rien à rédiger
         from ..services import verticals
         label = verticals.PROFILES[product_type]["label"].lower() if product_type in verticals.PROFILES else ""
         names = {"BE": "la Belgique", "FR": "la France", "LU": "le Luxembourg", "NL": "les Pays-Bas"}
         where = " et ".join(names[c] for c in countries if c in names) or "la France"
         prompt = (f"Boutique de {label} pour {where}. " if label else f"Boutique pour {where}. ") + prompt
-    if not prompt.strip() and not competitor_url.strip() and not (catalog_file and catalog_file.filename) and not has_photo:
+    if not prompt.strip() and not competitor_url.strip() and not (catalog_file and catalog_file.filename) and not has_photo and not facts:
         from ..services import verticals
         return render(request, "merchant/new.html", user=user, expert=not simple, verticals=verticals.PROFILES,
                       error="Décrivez votre projet, ou donnez une photo, une URL concurrente ou un catalogue.", status_code=400)
@@ -101,6 +113,11 @@ async def create(request: Request, prompt: str = Form(""), competitor_url: str =
                                                       "content_b64": base64.b64encode(content).decode(), "user_id": user.id})
     if demo:
         catalog.seed_demo(db, shop, res["extracted"].get("categories") or [None])
+    if facts:
+        src_copy = _apply_source_product(db, shop, b, facts, product_type, language if language in ("fr", "nl") else "fr",
+                                         has_draft=bool(product_draft))
+        if product_draft and product_draft["title"] == "Mon produit":  # photo sans IA : les textes viennent de la fiche réécrite
+            product_draft.update(title=src_copy["title"], description=src_copy["description"], brand=facts.get("brand", ""))
     if product_draft:
         if simple and not product_draft["category"] and product_type:
             product_draft["category"] = product_type
@@ -152,12 +169,47 @@ def _create_photo_product(db, shop, d):
     """Produit en BROUILLON : prix, stock, marque et provenance restent à renseigner par le commerçant."""
     from ..models import Product, Variant
     p = Product(shop_id=shop.id, handle=catalog.slugify(d["title"]) or "mon-produit", title=d["title"], description=d["description"],
-                category=d["category"], usage=catalog.slugify(d["usage"]) if d["usage"] else "", gender=d["gender"],
+                brand=d.get("brand", ""), category=d["category"], usage=catalog.slugify(d["usage"]) if d["usage"] else "", gender=d["gender"],
                 attributes=d["attributes"], images=[d["image"]], status="draft")
     db.add(p)
     db.add(Variant(shop_id=shop.id, product=p, sku=f"P{shop.id}-1", color=d["color"][:60], size="Unique", price_cents=None, stock=0))
     db.flush()
     return p
+
+
+def _apply_source_product(db, shop, b, facts, product_type, language, has_draft=False):
+    """Brief et produit à partir d'une page produit : faits repris, textes réécrits, photos jamais reprises."""
+    from ..models import Product, Variant
+    from ..services import product_import
+    ex = dict(b.extracted or {})
+    ex["source_product"] = {k: facts.get(k) for k in ("url", "domain", "name", "brand", "price", "currency", "options",
+                                                      "image_count", "retrieved_at", "security_flags")}
+    A = [dict(a) for a in b.assumptions]
+    if facts.get("brand") and not any(a["key"] == "brands" for a in A):
+        A.append({"key": "brands", "label": "Marques", "value": [facts["brand"]], "editable": True,
+                  "origin": f"marque indiquée sur {facts['domain']} — à confirmer (ne vaut pas autorisation de revente)"})
+        ex["brands"] = [facts["brand"]]
+    if language == "nl" and "nl" not in shop.languages:
+        shop.languages = ["nl"] + [l for l in shop.languages if l != "nl"]
+        shop.default_language = "nl"
+    b.assumptions, b.extracted = A, ex
+    b.competitor_url = b.competitor_url or facts["url"]
+    copy = product_import.write_copy(db, shop, facts, language)
+    if has_draft:
+        return copy
+    p = Product(shop_id=shop.id, handle=catalog.slugify(copy["title"]) or "produit", title=copy["title"],
+                description=copy["description"], category=product_type or facts.get("vertical") or "", brand=facts.get("brand", ""),
+                status="draft", images=[],
+                origin=f"Fiche créée à partir de {facts['domain']} (faits uniquement ; textes réécrits, photos non reprises)")
+    db.add(p)
+    opts = list((facts.get("options") or {}).items())
+    sizes = next((v for k, v in opts if re.search(r"taille|size|pointure|maat|grootte", k, re.I)), None) or ["Unique"]
+    colors = next((v for k, v in opts if re.search(r"couleur|colou?r|kleur", k, re.I)), None) or [""]
+    combos = [(sz, c) for c in colors for sz in sizes][:30]
+    for i, (sz, c) in enumerate(combos, 1):
+        db.add(Variant(shop_id=shop.id, product=p, sku=f"P{shop.id}-{i}", size=str(sz)[:20], color=str(c)[:60], price_cents=None, stock=0))
+    db.flush()
+    return copy
 
 
 def _sync_shop(shop, b):

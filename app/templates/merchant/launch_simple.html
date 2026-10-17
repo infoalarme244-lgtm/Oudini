@@ -17,9 +17,12 @@
 <input id="t{{ p.id }}" name="title" value="{{ '' if placeholder_title else p.title }}" required placeholder="ex. Montre automatique acier 40 mm">
 <label for="d{{ p.id }}">Description{% if ai_filled and p.description %} <span class="badge b-auto">proposée par l'IA, à relire</span>{% endif %}</label>
 <textarea id="d{{ p.id }}" name="description" placeholder="Ce qui le rend unique, ses dimensions, sa matière, son usage…">{{ p.description.replace('\n\n[À COMPLÉTER : vérifiez et complétez cette description.]','') }}</textarea>
+{% if p.origin and 'photos non reprises' in p.origin %}<p class="small alert warn">Fiche créée à partir de {{ (p.origin.split(' à partir de ')[1]).split(' (')[0] }} : textes réécrits, photos du site source non reprises (droits d'auteur). Ajoutez vos propres photos.</p>{% endif %}
 <div class="row"><div><label for="pr{{ p.id }}">Prix de vente TTC (€)</label>
 <input id="pr{{ p.id }}" name="price" inputmode="decimal" required value="{{ '%.2f'|format(v.price_cents/100) if v and v.price_cents else '%.2f'|format(sug.cents/100) }}"></div>
-<div><label for="st{{ p.id }}">Quantité en stock</label><input id="st{{ p.id }}" name="stock" type="number" min="0" required value="{{ v.stock if v and v.stock else '' }}" placeholder="ex. 5"></div></div>
+{% if p.variants|length <= 1 %}<div><label for="st{{ p.id }}">Quantité en stock</label><input id="st{{ p.id }}" name="stock" type="number" min="0" required value="{{ v.stock if v and v.stock else '' }}" placeholder="ex. 5"></div>{% endif %}</div>
+{% if p.variants|length > 1 %}<label>Stock par variante</label><div class="grid g3">{% for vv in p.variants %}<div><label for="sv{{ vv.id }}" class="small">{{ vv.label or vv.sku }}</label>
+<input id="sv{{ vv.id }}" name="stock_{{ vv.id }}" type="number" min="0" value="{{ vv.stock }}"></div>{% endfor %}</div>{% endif %}
 {% if not (v and v.price_cents) %}<p class="small muted">Prix suggéré : {{ sug.basis }}. C'est vous qui décidez.</p>{% endif %}
 {% if brands or p.brand %}<label for="sp{{ p.id }}">Comment vous procurez-vous ce produit{{ ' ' ~ (p.brand or brands|join(', ')) if (p.brand or brands) }} ?</label>
 <select id="sp{{ p.id }}" name="supply" required><option value="">— choisir —</option>{% for o in supply %}<option {{ 'selected' if o in (p.authenticity or '') }}>{{ o }}</option>{% endfor %}</select>

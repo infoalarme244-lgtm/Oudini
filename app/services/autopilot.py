@@ -118,7 +118,14 @@ def lookup_company(raw: str, transport=None) -> dict:
 
 # ---------------------------------------------------------------- 3. prix suggéré
 def price_suggestion(db, shop, product) -> dict:
-    """Médiane des prix observés chez les concurrents analysés ; à défaut, milieu de la fourchette du positionnement."""
+    """Prix observé sur la page source si le produit vient d'un lien ; sinon médiane des concurrents analysés ;
+    à défaut, milieu de la fourchette du positionnement."""
+    from ..models import Brief
+    b = db.scalar(select(Brief).where(Brief.shop_id == shop.id).order_by(Brief.id.desc()))
+    src = ((b.extracted or {}).get("source_product") or {}) if b else {}
+    if src.get("price") and (src.get("currency") or "EUR").upper() == "EUR":
+        return {"cents": int(round(float(src["price"]) * 100)),
+                "basis": f"prix observé sur {src['domain']} le {src['retrieved_at']} — à ajuster selon vos coûts"}
     a = db.scalar(select(CompetitorAnalysis).where(CompetitorAnalysis.shop_id == shop.id).order_by(CompetitorAnalysis.id.desc()))
     medians = []
     if a:

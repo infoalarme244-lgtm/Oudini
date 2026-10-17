@@ -10,6 +10,8 @@
 
 - **Parcours simple en 4 étapes** (nouveau) : tout est pré-rempli, le client fournit ses photos, connecte sa banque (Stripe Connect) et valide. Vérifié avec des registres et un Stripe simulés ; reste à tester avec une vraie clé de plateforme (Connect activé) et avec les vrais registres publics depuis un serveur.
 
+- **Création depuis le lien d'un produit** (équivalent maison de « Store AI » de Copyfy, sans recopier) : vérifié avec des pages simulées ; à tester sur de vraies pages depuis un serveur ou votre ordinateur, car le réseau de l'environnement de développement bloque les sites.
+
 ## À faire
 1. ~~Renouveler la clé Stripe de test~~ : fait. Reste à désactiver EPS, MB Way et Satispay dans le dashboard.
 2. Activer **Stripe Connect** sur votre compte Stripe (mode test), puis tester le parcours simple jusqu'à « compte connecté » (voir `docs/BRANCHEMENT.md`, section 0).

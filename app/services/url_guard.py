@@ -130,7 +130,7 @@ class SafeFetcher:
             if r.status_code in (401, 403, 429):
                 raise FetchBlocked(f"Accès restreint (HTTP {r.status_code}) : non contourné")
             ctype = r.headers.get("content-type", "")
-            if r.status_code == 200 and not any(t in ctype for t in ("text/html", "application/xhtml", "text/plain", "application/ld+json")):
+            if r.status_code == 200 and not any(t in ctype for t in ("text/html", "application/xhtml", "text/plain", "application/ld+json", "application/json")):
                 raise FetchBlocked(f"Type de contenu non pris en charge : {ctype}")
             return FetchResult(url=current, status=r.status_code, content_type=ctype,
                                text=r.content.decode(r.encoding or "utf-8", errors="replace"), redirects=redirects)

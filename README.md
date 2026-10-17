@@ -49,6 +49,15 @@ Le client n'a que trois choses à faire : fournir ses photos, connecter son comp
 
 Le mode expert (toutes les pages détaillées) reste accessible depuis le menu.
 
+## Démarrer par le lien d'un produit
+
+Sur l'écran de création, le client peut coller le lien d'un produit (page d'une boutique ou d'une marque) au lieu d'une photo :
+- **faits repris** : nom, marque, caractéristiques, options (tailles, couleurs → variantes) et prix observé, qui sert de prix suggéré. Pour les boutiques Shopify, la fiche publique au format JSON est lue ; ailleurs, les données structurées de la page ;
+- **textes réécrits** : l'IA rédige une fiche originale ; toute phrase partageant une suite de 7 mots avec la source est retirée, et ce contrôle est tracé. Sans IA, seul le nom est repris et la description reste à écrire ;
+- **photos jamais reprises** (droits d'auteur) : le client ajoute les siennes à l'étape 1 ;
+- la marque est notée « à confirmer » et le statut de revendeur est demandé ; la page source rejoint l'analyse concurrentielle ;
+- la récupération respecte robots.txt et la protection contre l'accès aux adresses internes ; tout texte de la page est traité comme une donnée.
+
 ## Démarrer par une photo
 
 Sur `/app/new`, une seule photo du produit suffit. La boutique est alors construite autour d'elle :
@@ -72,7 +81,7 @@ Chaque étape est marquée *Automatique*, *Connexion externe* ou *Validation du 
 
 ## État à la livraison
 
-### Fonctionne et est testé (117 tests automatisés, sur SQLite et PostgreSQL 16, tous verts)
+### Fonctionne et est testé (122 tests automatisés, sur SQLite et PostgreSQL 16, tous verts)
 
 | Domaine | Vérifié par |
 |---|---|
@@ -93,6 +102,7 @@ Chaque étape est marquée *Automatique*, *Connexion externe* ou *Validation du 
 | Import CSV/XLSX avec rapport ligne par ligne, ré-import idempotent, export | `test_csv_import_validation_and_export`, `test_xlsx_import` |
 | Multi-catégories : détection (montres, bijoux, accessoires, beauté…), boutique mixte, filtres par caractéristique, aide au choix poignet/doigt/taille, INCI obligatoire, import `attr_*`, recommandations par verticale, boutique générique | `test_verticals.py`, `test_mobile_watch_shop` |
 | Parcours simple : création en un écran, pré-remplissage, recherche d'entreprise FR/BE (clés de contrôle, registres simulés), Stripe Connect (inscription, webhook par compte, paiement encaissé sur le compte du commerçant), validation et publication en un clic | `test_simple_launch.py`, `test_simple_launch_screens` |
+| Lien produit : Shopify JSON et HTML, variantes, prix observé, contrôle anti-copie, photos non reprises, robots.txt et adresses internes | `test_product_url.py` |
 | Démarrage par photo : palette et contrastes, nettoyage des métadonnées, droits d'utilisation, analyse par Claude (simulée), animations et réduction des animations | `test_photo.py`, `test_photo_shop_animated` |
 | Édition par conversation (style, collection, traduction NL, pack rentable), prévisualisation, application, retour arrière | `test_chat_edit_preview_apply_rollback` |
 | Assistant d'achat limité aux données réelles, transfert au commerçant en cas de doute ; aide pointure avec incertitude ; A/B sans gagnant sur données insuffisantes ; veille avec suggestions qui protègent la marge | `test_features.py` |

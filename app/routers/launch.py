@@ -44,7 +44,7 @@ async def product_save(pid: int, request: Request, photos: list[UploadFile] = Fi
     f = await request.form()
     try:
         price = _money(f.get("price"))
-        stock = int(f.get("stock") or 0)
+        stock = int(f.get("stock") or 0) + sum(int(f.get(k) or 0) for k in f.keys() if k.startswith("stock_"))
     except ValueError:
         return redirect(f"/app/shops/{ctx.shop.id}/lancement?etape=1", "Prix ou stock invalide")
     if not price or stock < 0:
@@ -64,10 +64,13 @@ async def product_save(pid: int, request: Request, photos: list[UploadFile] = Fi
     if supply:
         p.origin = p.authenticity = f"Déclaré par le commerçant : {supply}"
         p.brand = str(f.get("brand") or p.brand or "")
-    v = p.variants[0] if p.variants else Variant(shop_id=ctx.shop.id, product=p, sku=f"P{ctx.shop.id}-{p.id}", size="Unique")
     if not p.variants:
-        db.add(v)
-    v.price_cents, v.stock = price, stock
+        db.add(Variant(shop_id=ctx.shop.id, product=p, sku=f"P{ctx.shop.id}-{p.id}", size="Unique"))
+        db.flush()
+    for v in p.variants:  # un prix pour toutes les variantes ; stock par variante si plusieurs tailles/couleurs
+        v.price_cents = price
+        per = f.get(f"stock_{v.id}")
+        v.stock = max(0, int(per)) if per not in (None, "") else (stock if len(p.variants) == 1 else v.stock)
     if not p.handle or p.handle.startswith("mon-produit"):
         p.handle = slugify(p.title) or p.handle
     p.status = "active" if not (p.brand and not p.authenticity) else "draft"
