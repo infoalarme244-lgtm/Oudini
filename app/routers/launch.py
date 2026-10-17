@@ -6,7 +6,7 @@ from sqlalchemy import select
 from ..config import settings
 from ..db import get_db
 from ..models import Brief, Product, Variant
-from ..services import approvals, autopilot, generator, media, payments, readiness, versions
+from ..services import approvals, autopilot, generator, imagegen, jobs, media, payments, readiness, versions
 from ..services.audit import audit
 from ..services.catalog import _money, slugify
 from ..services.tenancy import get_owned
@@ -34,7 +34,7 @@ def wizard(request: Request, etape: int = 0, ctx: ShopCtx = Depends(shop_ctx), d
                   suggestions={p.id: autopilot.price_suggestion(db, shop, p) for p in products},
                   brands=brands, supply=SUPPLY, recap=autopilot.recap(db, shop), readiness=readiness.check(db, shop),
                   platform_mode=payments.platform_mode(), connect=payments.connect_account(db, shop) if payments.platform_mode() else None,
-                  lookup=request.query_params.get("lookup"), ai_filled=ai_filled)
+                  lookup=request.query_params.get("lookup"), ai_filled=ai_filled, imagegen_on=imagegen.enabled())
 
 
 # ---------------------------------------------------------------- 1. produit
@@ -75,6 +75,8 @@ async def product_save(pid: int, request: Request, photos: list[UploadFile] = Fi
         p.handle = slugify(p.title) or p.handle
     p.status = "active" if not (p.brand and not p.authenticity) else "draft"
     db.flush()
+    if imagegen.enabled() and imagegen.reference_image(p) and not any(i.get("ai") for i in p.images or []):
+        jobs.enqueue(db, ctx.shop.id, "image_generation", {"product_id": p.id})
     audit(db, ctx.shop.id, ctx.user.id, "launch.product", "product", p.id, after={"price": price, "stock": stock, "status": p.status})
     db.commit()
     msg = "Produit prêt à la vente" if p.status == "active" else "Indiquez votre approvisionnement pour ce produit de marque"
@@ -167,3 +169,37 @@ def publish(confirm: str = Form(""), ctx: ShopCtx = Depends(shop_ctx), db=Depend
     approvals.decide(db, ctx.shop, req, True, ctx.user.id)
     db.commit()
     return redirect(f"/app/shops/{ctx.shop.id}/lancement", "Votre boutique est en ligne" if ctx.shop.status == "published" else req.result)
+
+
+# ---------------------------------------------------------------- visuels générés par IA
+@router.post("/visuels/{pid}")
+def images_generate(pid: int, ctx: ShopCtx = Depends(shop_ctx), db=Depends(get_db)):
+    p = get_owned(db, Product, ctx.shop.id, pid)
+    if not imagegen.enabled():
+        return redirect(f"/app/shops/{ctx.shop.id}/lancement?etape=1", "Génération d'images non configurée sur la plateforme")
+    if not imagegen.reference_image(p):
+        return redirect(f"/app/shops/{ctx.shop.id}/lancement?etape=1", "Ajoutez d'abord une photo de votre produit")
+    j = jobs.enqueue(db, ctx.shop.id, "image_generation", {"product_id": p.id, "scenes": None})
+    db.commit()
+    res = j.result or {}
+    msg = (f"{res.get('created', 0)} visuel(s) généré(s) : vérifiez-les ci-dessous" if j.status == "done"
+           else "Génération lancée : les visuels apparaîtront ici dans quelques instants")
+    if res.get("errors"):
+        msg += " — " + " ; ".join(res["errors"][:2])
+    if res.get("skipped"):
+        msg = res["skipped"]
+    return redirect(f"/app/shops/{ctx.shop.id}/lancement?etape=1", msg)
+
+
+@router.post("/visuels/{pid}/{idx}/{action}")
+def image_review(pid: int, idx: int, action: str, ctx: ShopCtx = Depends(shop_ctx), db=Depends(get_db)):
+    p = get_owned(db, Product, ctx.shop.id, pid)
+    imgs = [dict(i) for i in p.images or []]
+    if not (0 <= idx < len(imgs)) or not imgs[idx].get("ai") or action not in ("approve", "reject"):
+        return redirect(f"/app/shops/{ctx.shop.id}/lancement?etape=1", "Visuel introuvable")
+    imgs[idx]["status"] = "approved" if action == "approve" else "rejected"
+    p.images = imgs
+    audit(db, ctx.shop.id, ctx.user.id, f"image.{imgs[idx]['status']}", "product", p.id, after={"url": imgs[idx]["url"]})
+    db.commit()
+    return redirect(f"/app/shops/{ctx.shop.id}/lancement?etape=1",
+                    "Visuel ajouté à la boutique" if action == "approve" else "Visuel écarté")

@@ -197,3 +197,31 @@ def test_simple_launch_screens(server, app, merchant, db):
             page.goto(f"{server}/app/shops/{sid}/lancement?etape=1")
             page.screenshot(path=str(SHOTS / f"{name.replace('creer', 'lancement')}.png"), full_page=True)
         b.close()
+
+
+def test_product_story_mobile(server, app, merchant, db, monkeypatch):
+    import httpx
+    from conftest import shop_of
+    from app.services import imagegen
+    from test_imagegen import png_b64
+    from test_simple_launch import simple_create
+    monkeypatch.setenv("OPENAI_API_KEY", "sk")
+    monkeypatch.setattr(imagegen, "PROVIDER", "openai")
+    monkeypatch.setattr(imagegen, "TRANSPORT", httpx.MockTransport(lambda r: httpx.Response(200, json={"data": [{"b64_json": png_b64((200, 120, 40))}]})))
+    sid, _ = simple_create(merchant)
+    from sqlalchemy import select
+    from app.models import Product
+    p = db.scalar(select(Product).where(Product.shop_id == sid))
+    p.images = [{**i, "status": "approved"} if i.get("ai") else i for i in p.images]
+    p.description = "Une montre sobre.\n\n- Boîtier acier brossé\n- Bracelet ajustable\n- Garantie 2 ans"
+    db.commit()
+    shop = shop_of(db, sid)
+    with pw.sync_playwright() as pl:
+        b = _browser(pl)
+        page = b.new_context(viewport={"width": 375, "height": 812}, is_mobile=True).new_page()
+        page.goto(f"{server}/s/{shop.slug}/product/{p.handle}?preview={shop.preview_token}")
+        _reveal_all(page)
+        assert _no_hscroll(page) and page.locator(".story-row").count() == 4 and page.locator(".thumb").count() == 5
+        page.locator(".thumb").nth(2).click()
+        assert page.locator("#gcap").is_visible()
+        b.close()

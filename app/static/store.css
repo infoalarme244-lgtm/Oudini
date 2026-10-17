@@ -91,3 +91,15 @@ header.site{transition:box-shadow .25s ease}header.site.scrolled{box-shadow:0 6p
 @keyframes marquee{to{transform:translateX(-50%)}}
 @keyframes zoomin{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
 @media (max-width:900px){.hero--image{grid-template-columns:1fr;gap:24px}.hero--image .hero-visual{order:-1;max-width:420px;width:100%;margin:0 auto}}
+
+/* galerie et sections de la fiche produit */
+.gallery .main{position:relative}.ai-cap{position:absolute;left:10px;bottom:10px;font-size:11px;padding:3px 8px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff}
+.thumbs{display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:4px}
+.thumb{flex:none;padding:0;border:2px solid transparent;border-radius:var(--radius);background:none;cursor:pointer;overflow:hidden;width:72px;height:72px}
+.thumb img{width:100%;height:100%;object-fit:cover}.thumb.on{border-color:var(--accent)}
+.story{margin:48px 0;display:grid;gap:36px}
+.story-row{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}.story-row.rev figure{order:2}
+.story-row figure{position:relative;margin:0;border-radius:calc(var(--radius) * 1.5);overflow:hidden;aspect-ratio:1/1}
+.story-row img{width:100%;height:100%;object-fit:cover}
+.story-row h2{font-size:clamp(1.3rem,2.6vw,2rem)}
+@media (max-width:900px){.story-row{grid-template-columns:1fr;gap:16px}.story-row.rev figure{order:0}}

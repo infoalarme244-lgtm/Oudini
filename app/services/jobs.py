@@ -49,4 +49,4 @@ def run_pending(db, limit=10) -> int:
 
 
 def _load_handlers():
-    from . import analysis, catalog, watch, inventory  # noqa: F401  (enregistrent leurs handlers)
+    from . import analysis, catalog, imagegen, inventory, watch  # noqa: F401  (enregistrent leurs handlers)

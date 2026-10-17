@@ -44,7 +44,8 @@ def check(db, shop) -> dict:
     add("prices", "Tous les produits ont un prix", not no_price, detail=", ".join(no_price[:5]), fix="/products")
     no_stock = [p.title for p in real if sum(v.available for v in p.variants) == 0]
     add("stock", "Stock disponible", not no_stock, False, detail="Sans stock : " + ", ".join(no_stock[:5]) if no_stock else "")
-    no_img = [p.title for p in real if not [i for i in p.images or [] if i.get("license")]]
+    from .imagegen import public_images
+    no_img = [p.title for p in real if not public_images(p)]
     add("images", "Images avec droits d'utilisation déclarés", not no_img, False, detail=", ".join(no_img[:5]), fix="/products")
     from . import verticals
     missing_req, missing_rec = [], []

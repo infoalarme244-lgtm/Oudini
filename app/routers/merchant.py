@@ -127,6 +127,12 @@ async def create(request: Request, prompt: str = Form(""), competitor_url: str =
         # aucune question bloquante : les choix par défaut sont appliqués et restent modifiables
         b.questions = [{**q, "answer": q.get("answer") or ("fr" if q["key"] == "languages" else None)} for q in b.questions]
         _generate(db, shop, b, user, 0, analyse=True)
+        from ..models import Product
+        from ..services import imagegen
+        if imagegen.enabled():  # visuels de mise en situation, à valider par le commerçant
+            for p in db.scalars(select(Product).where(Product.shop_id == shop.id, Product.is_demo.is_(False))):
+                if imagegen.reference_image(p):
+                    jobs.enqueue(db, shop.id, "image_generation", {"product_id": p.id})
         db.commit()
         return redirect(f"/app/shops/{shop.id}/lancement")
     db.commit()

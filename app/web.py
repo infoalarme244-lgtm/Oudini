@@ -55,6 +55,8 @@ templates.env.filters["tojson_pretty"] = lambda v: json.dumps(v, ensure_ascii=Fa
 templates.env.globals["STATUS_FR"] = {
     "pending_payment": "En attente de paiement", "paid": "Payée", "payment_failed": "Paiement échoué", "cancelled": "Annulée",
     "fulfilled": "Expédiée", "partially_refunded": "Remboursée partiellement", "refunded": "Remboursée"}
+from .services.imagegen import public_images  # noqa: E402
+templates.env.globals["public_images"] = public_images
 templates.env.globals["CONF_FR"] = {"high": "élevée", "medium": "moyenne", "low": "faible", "none": "aucune"}
 
 

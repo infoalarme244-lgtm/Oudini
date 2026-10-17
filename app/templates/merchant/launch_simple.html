@@ -8,7 +8,7 @@
 {% for p in products %}{% set sug = suggestions[p.id] %}{% set v = p.variants[0] if p.variants else none %}
 <form method="post" action="/app/shops/{{ shop.id }}/lancement/produit/{{ p.id }}" enctype="multipart/form-data" class="grid g2" style="align-items:start;margin-bottom:20px">
 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-<div>{% for i in p.images[:4] %}<img src="{{ i.url }}" alt="" style="width:{{ '100%' if loop.first else '23%' }};border-radius:10px;margin:0 1% 6px 0;display:inline-block">{% endfor %}
+<div>{% set own = p.images|rejectattr('ai')|list %}{% for i in own[:4] %}<img src="{{ i.url }}" alt="" style="width:{{ '100%' if loop.first else '23%' }};border-radius:10px;margin:0 1% 6px 0;display:inline-block">{% endfor %}
 {% if not p.images %}<p class="muted">Ajoutez une photo de votre produit.</p>{% endif %}
 <label for="ph{{ p.id }}">Ajouter des photos</label><input id="ph{{ p.id }}" type="file" name="photos" accept="image/jpeg,image/png,image/webp" multiple>
 <label><input type="checkbox" name="photo_rights" value="1" checked> Ce sont mes photos (ou j'ai l'autorisation de les utiliser)</label></div>
@@ -30,6 +30,17 @@
 <p class="small muted">La boutique affichera honnêtement votre statut (revendeur indépendant, sauf justificatif).</p>{% endif %}
 <p><button class="btn primary">{{ 'Mettre à jour' if p.status == 'active' else 'Valider ce produit' }}</button>
 {% if p.status == 'active' %}<span class="badge b-ok">en vente</span>{% endif %}</p></div></form>
+<div class="card" style="background:var(--bg)"><h3>Visuels générés par IA</h3>
+{% set ai_imgs = [] %}{% for i in p.images or [] %}{% if i.get('ai') and i.get('status') != 'rejected' %}{% set _ = ai_imgs.append((loop.index0, i)) %}{% endif %}{% endfor %}
+{% if ai_imgs %}<p class="small muted">Vérifiez que chaque visuel représente fidèlement votre produit (forme, couleur, logo). Seuls les visuels gardés apparaissent sur la boutique, avec la mention « Visuel généré par IA ».</p>
+<div class="grid g4">{% for idx, i in ai_imgs %}<div><img src="{{ i.url }}" alt="{{ i.alt }}" style="width:100%;border-radius:10px;aspect-ratio:1/1;object-fit:cover">
+<div class="small">{{ i.alt.split(' — ')[-1] }} {% if i.status == 'approved' %}<span class="badge b-ok">gardé</span>{% else %}<span class="badge b-warn">à vérifier</span>{% endif %}</div>
+{% if i.status != 'approved' %}<form class="inline" method="post" action="/app/shops/{{ shop.id }}/lancement/visuels/{{ p.id }}/{{ idx }}/approve"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm">Garder</button></form>{% endif %}
+<form class="inline" method="post" action="/app/shops/{{ shop.id }}/lancement/visuels/{{ p.id }}/{{ idx }}/reject"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm danger">Rejeter</button></form></div>{% endfor %}</div>
+{% elif not imagegen_on %}<p class="small muted">La génération de visuels n'est pas encore activée sur la plateforme.</p>
+{% else %}<p class="small muted">Aucun visuel pour l'instant.</p>{% endif %}
+{% if imagegen_on %}<form method="post" action="/app/shops/{{ shop.id }}/lancement/visuels/{{ p.id }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<button class="btn sm">✨ Générer des visuels (studio, mise en situation, en main, détail)</button></form>{% endif %}</div>
 {% else %}<p class="muted">Aucun produit. <a href="/app/shops/{{ shop.id }}/products">Ajouter un produit</a> ou <a href="/app/shops/{{ shop.id }}/import">importer un catalogue</a>.</p>{% endfor %}
 <p><a class="btn" href="?etape=2">Étape suivante →</a></p></div>
 

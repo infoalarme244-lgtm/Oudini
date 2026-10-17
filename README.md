@@ -49,6 +49,18 @@ Le client n'a que trois choses à faire : fournir ses photos, connecter son comp
 
 Le mode expert (toutes les pages détaillées) reste accessible depuis le menu.
 
+## Visuels générés par IA
+
+Dès qu'une photo du commerçant est disponible (création par photo, ou photo ajoutée à l'étape 1), la plateforme génère 4 visuels adaptés au type de produit : studio, mise en situation, en main ou porté, détail. Pour une montre, par exemple : au poignet et sur un bureau.
+- **Fournisseur au choix** : `IMAGE_PROVIDER=openai` (édition d'image à partir de la photo) ou `gemini`, avec la clé correspondante.
+- **Consigne stricte** : produit identique (forme, couleurs, logo), aucun texte, prix, note ou badge ajouté, aucune personne réelle ou célèbre, rien d'intime.
+- **Validation obligatoire** : chaque visuel est « à vérifier » tant que le commerçant ne l'a pas gardé, et seuls les visuels gardés apparaissent sur la boutique, avec la mention « Visuel généré par IA ».
+- **Jamais à partir des images d'un autre site** : la seule référence possible est la photo du commerçant.
+- **Coût** décompté du budget IA de la boutique, et chaque génération est tracée.
+- La fiche produit gagne une galerie et des sections alternant visuels et arguments. Ces arguments viennent de la description ou des engagements réels : jamais de faux avis, de faux experts ni de statistiques inventées.
+
+Essai avec votre clé : `python scripts/verify_images.py ma-photo.jpg watches`.
+
 ## Démarrer par le lien d'un produit
 
 Sur l'écran de création, le client peut coller le lien d'un produit (page d'une boutique ou d'une marque) au lieu d'une photo :
@@ -81,7 +93,7 @@ Chaque étape est marquée *Automatique*, *Connexion externe* ou *Validation du 
 
 ## État à la livraison
 
-### Fonctionne et est testé (122 tests automatisés, sur SQLite et PostgreSQL 16, tous verts)
+### Fonctionne et est testé (130 tests automatisés, sur SQLite et PostgreSQL 16, tous verts)
 
 | Domaine | Vérifié par |
 |---|---|
@@ -102,6 +114,7 @@ Chaque étape est marquée *Automatique*, *Connexion externe* ou *Validation du 
 | Import CSV/XLSX avec rapport ligne par ligne, ré-import idempotent, export | `test_csv_import_validation_and_export`, `test_xlsx_import` |
 | Multi-catégories : détection (montres, bijoux, accessoires, beauté…), boutique mixte, filtres par caractéristique, aide au choix poignet/doigt/taille, INCI obligatoire, import `attr_*`, recommandations par verticale, boutique générique | `test_verticals.py`, `test_mobile_watch_shop` |
 | Parcours simple : création en un écran, pré-remplissage, recherche d'entreprise FR/BE (clés de contrôle, registres simulés), Stripe Connect (inscription, webhook par compte, paiement encaissé sur le compte du commerçant), validation et publication en un clic | `test_simple_launch.py`, `test_simple_launch_screens` |
+| Visuels IA : OpenAI et Gemini (forme des requêtes), validation obligatoire, mention IA, fichiers nettoyés, budget, aucune référence tierce | `test_imagegen.py`, `test_product_story_mobile` |
 | Lien produit : Shopify JSON et HTML, variantes, prix observé, contrôle anti-copie, photos non reprises, robots.txt et adresses internes | `test_product_url.py` |
 | Démarrage par photo : palette et contrastes, nettoyage des métadonnées, droits d'utilisation, analyse par Claude (simulée), animations et réduction des animations | `test_photo.py`, `test_photo_shop_animated` |
 | Édition par conversation (style, collection, traduction NL, pack rentable), prévisualisation, application, retour arrière | `test_chat_edit_preview_apply_rollback` |

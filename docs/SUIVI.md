@@ -12,6 +12,8 @@
 
 - **Création depuis le lien d'un produit** (équivalent maison de « Store AI » de Copyfy, sans recopier) : vérifié avec des pages simulées ; à tester sur de vraies pages depuis un serveur ou votre ordinateur, car le réseau de l'environnement de développement bloque les sites.
 
+- **Visuels générés par IA** (nouveau) : 4 mises en situation à partir de la photo du commerçant, validées une par une, avec la mention « Visuel généré par IA ». Vérifié avec des fournisseurs simulés ; à tester avec une vraie clé OpenAI ou Gemini (`scripts/verify_images.py`). Les faux avis, faux experts et fausses statistiques visibles chez Copyfy ne sont volontairement pas reproduits (interdits en Europe).
+
 ## À faire
 1. ~~Renouveler la clé Stripe de test~~ : fait. Reste à désactiver EPS, MB Way et Satispay dans le dashboard.
 2. Activer **Stripe Connect** sur votre compte Stripe (mode test), puis tester le parcours simple jusqu'à « compte connecté » (voir `docs/BRANCHEMENT.md`, section 0).

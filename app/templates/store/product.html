@@ -1,7 +1,10 @@
 {% extends "store/base.html" %}{% block title %}{{ title }} — {{ snap.brand.name }}{% endblock %}
 {% block demo %}{% if p.is_demo %}<div class="banner demo">Produit de DÉMONSTRATION fictif</div>{% endif %}{% endblock %}
-{% block content %}<div class="pdp"><div class="gallery"><div class="main">{% if images %}<img src="{{ images[0].url }}" alt="{{ images[0].alt }}" width="800" height="800">{% else %}<span>Photo à venir</span>{% endif %}</div>
-{% if images|length>1 %}<div style="display:flex;gap:8px;margin-top:8px">{% for i in images[1:5] %}<img src="{{ i.url }}" alt="{{ i.alt }}" width="80" height="80" loading="lazy" style="border-radius:var(--radius)">{% endfor %}</div>{% endif %}</div>
+{% block content %}<div class="pdp"><div class="gallery">
+<figure class="main" style="margin:0">{% if images %}<img id="gmain" src="{{ images[0].url }}" alt="{{ images[0].alt }}" width="800" height="800">
+{% if images|selectattr('ai')|list %}<figcaption id="gcap" class="ai-cap"{{ '' if images[0].get('ai') else ' hidden' }}>Visuel généré par IA</figcaption>{% endif %}{% else %}<span>Photo à venir</span>{% endif %}</figure>
+{% if images|length>1 %}<div class="thumbs" role="list">{% for i in images[:8] %}<button type="button" class="thumb{{ ' on' if loop.first }}" role="listitem"
+ data-src="{{ i.url }}" data-alt="{{ i.alt }}" data-ai="{{ 1 if i.get('ai') else 0 }}" aria-label="Voir l'image {{ loop.index }}"><img src="{{ i.url }}" alt="" width="80" height="80" loading="lazy"></button>{% endfor %}</div>{% endif %}</div>
 <div><p style="color:var(--muted);margin:0">{{ p.brand }}{{ ' · ' ~ p.model if p.model }}</p><h1>{{ title }}</h1>
 {% set prices = p.variants|selectattr('price_cents')|map(attribute='price_cents')|list %}
 <p style="font-size:1.4rem;font-weight:700">{{ (prices|min)|money if prices else 'Prix à venir' }}{% if prices and prices|min != prices|max %} – {{ (prices|max)|money }}{% endif %} <span style="font-size:13px;color:var(--muted);font-weight:400">TTC</span></p>
@@ -28,6 +31,13 @@
 {% if p.authenticity %}<div><strong>Authenticité</strong><br><span class="small">{{ p.authenticity }}</span></div>{% endif %}
 {% if snap.home.reseller_notice %}<div class="small" style="color:var(--muted)">{{ snap.home.reseller_notice }}</div>{% endif %}</div>
 {% if p.description %}<div class="prose" style="margin-top:16px">{{ p.description|md }}</div>{% endif %}</div></div>
+{% set extra = images[1:] %}{% if extra and highlights %}<section class="story">
+{% for i in extra[:4] %}{% set h = highlights[loop.index0 % highlights|length] %}
+<div class="story-row reveal{{ ' rev' if loop.index is even }}"><figure><img src="{{ i.url }}" alt="{{ i.alt }}" width="700" height="700" loading="lazy">
+{% if i.get('ai') %}<figcaption class="ai-cap">Visuel généré par IA</figcaption>{% endif %}</figure>
+<div><p class="eyebrow">{{ '%02d'|format(loop.index) }}</p><h2>{{ h }}</h2></div></div>{% endfor %}</section>{% endif %}
+<script>document.querySelectorAll('.thumb').forEach(b=>b.addEventListener('click',()=>{const m=document.getElementById('gmain');m.src=b.dataset.src;m.alt=b.dataset.alt;
+const c=document.getElementById('gcap');if(c)c.hidden=b.dataset.ai!=='1';document.querySelectorAll('.thumb').forEach(x=>x.classList.toggle('on',x===b))}));</script>
 <script>const sf=document.getElementById('sform');if(sf){sf.addEventListener('submit',async e=>{e.preventDefault();const r=await fetch('{{ st.base }}/api/size',{method:'POST',body:new FormData(sf)});const d=await r.json();
 const out=document.getElementById('sres');out.textContent='';const p=document.createElement('p');p.textContent=d.message+(d.ok?' Niveau de certitude : '+({low:'faible',medium:'moyen',high:'élevé'}[d.confidence]||d.confidence)+'.':'');out.append(p);
 if(d.ok){const a=document.createElement('p');a.textContent=d.assumption+' '+d.basis+(d.in_stock?'':' — Cette taille est actuellement épuisée.');a.style.color='var(--muted)';out.append(a)}});}</script>

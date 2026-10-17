@@ -9,7 +9,7 @@ from ..config import settings
 from ..db import get_db
 from ..models import (Cart, Customer, Experiment, Order, Product, ShippingZone, ShopVersion, Shop, SizeRecommendation,
                       StockAlert, StoreEvent, SupportTicket, Variant, now)
-from ..services import assistant, catalog, experiments, orders as ordersvc, payments, size_advisor, versions
+from ..services import assistant, catalog, imagegen, experiments, orders as ordersvc, payments, size_advisor, versions
 from ..services.security import hash_password, verify_password
 from ..services.tenancy import membership_for
 from ..web import check_csrf, csrf, redirect, session, set_session, templates
@@ -207,8 +207,14 @@ def product(handle: str, st: Store = Depends(store_ctx), db=Depends(get_db)):
     vp = verticals.for_product(p)
     specs = [(lbl, (p.attributes or {}).get(k)) for k, lbl, _ in vp["attributes"] if (p.attributes or {}).get(k) not in (None, "")]
     return page(st, "store/product.html", db, p=p, title=title, guide=guide, guide_level=level, delays=delays, colors=colors,
-                images=[i for i in p.images or [] if i.get("license")], vp=vp, specs=specs,
+                images=imagegen.public_images(p), vp=vp, specs=specs, highlights=_highlights(p, st.snap),
                 guide_rows=sa._rows(guide) if guide else [])
+
+
+def _highlights(p, snap) -> list[str]:
+    """Arguments de la fiche (lignes « - » de la description) ; à défaut, les engagements réels de la boutique."""
+    lines = [l[2:].strip() for l in (p.description or "").splitlines() if l.startswith("- ") and l[2:].strip()]
+    return lines or list(snap.get("home", {}).get("value_props", []))
 
 
 @router.post("/cart/add")
